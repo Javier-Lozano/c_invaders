@@ -2,7 +2,7 @@
 #include "defines.h"
 #include "input.h"
 #include "player.h"
-//#include "swarm.h"
+#include "swarm.h"
 #include "bullet.h"
 
 ///// Globals /////
@@ -13,6 +13,8 @@ SDL_Scancode g_Bindings[INPUT_SIZE];
 ///// Functions /////
 
 void DrawBackground(SDL_Renderer *renderer);
+
+///// Main /////
 
 int main(int argc, char **argv)
 {
@@ -38,14 +40,14 @@ int main(int argc, char **argv)
 	// Player
 	Player player;
 	InitPlayer(&player);
-	printf("Player -> x: %d, y: %d, w: %d, h: %d \n", player.box.x, player.box.y, player.box.h, player.box.w);
 
 	// Swarm
 	//Swarm swarm;
 	//InitSwarm(&swarm);
 
 	// Bullets
-	Bullet bullets[BULLET_MAX] = {0};
+	Bullet bullets[BULLET_COUNT] = {0};
+	player.bullet = &bullets[0];
 
 	///// Main Loop /////
 
@@ -60,15 +62,15 @@ int main(int argc, char **argv)
 			HandleInput(&event);
 		}
 
-		///// Update /////
-		
 		// Player
-		UpdatePlayer(&player, bullets);
-		//UpdatePlayer(&player, &bullets);
+		UpdatePlayer(&player);
 		// Swarm
-		//UpdateSwarm(&swarm, &player, &bullets);
+		//UpdateSwarm(&swarm);
 		// Bullets
 		UpdateBullets(bullets);
+
+		///// Collision Detection /////
+		//CheckCollision(&player, &bullets, &swarm);
 
 		///// Render /////
 
@@ -77,7 +79,7 @@ int main(int argc, char **argv)
 		// Player
 		RenderPlayer(renderer, &player);
 		// Swarm
-		//RenderSwarm(&swarm);
+		//RenderSwarm(renderer, &swarm);
 		// Bullets
 		RenderBullets(renderer, bullets);
 
@@ -85,6 +87,7 @@ int main(int argc, char **argv)
 		SDL_RenderPresent(renderer);
 
 		//fprintf(stderr, "Input: %x\r", g_Input);
+		//fprintf(stderr, "Bullet Count: %d\n", g_BulletCount);
 	}
 
 	SDL_DestroyWindow(window);

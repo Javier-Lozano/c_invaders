@@ -2,27 +2,26 @@
 
 void InitPlayer(Player *player)
 {
-	*player = (Player) {
-		{ PLAYER_X, PLAYER_Y, PLAYER_W, PLAYER_H },
-		PLAYER_SPD_X,
-		0
-	};
+	player->box.x = (GAME_W / 2) - (PLAYER_W / 2);
+	player->box.y = (GAME_H - (GAME_BORDER * 2));
+	player->box.w = PLAYER_W;
+	player->box.h = PLAYER_H;
 }
 
-void UpdatePlayer(Player *player, Bullet *bullets)
+void UpdatePlayer(Player *player)
 {
 	// Input
-	int x_dir = (CHECK_BIT_BOOL(g_Input, INPUT_RIGHT)) - (CHECK_BIT_BOOL(g_Input, INPUT_LEFT));
-	player->box.x += (x_dir * player->speed);
+	int x_dir = (CHECK_INPUT(g_Input, INPUT_RIGHT)) - (CHECK_INPUT(g_Input, INPUT_LEFT));
+	player->box.x += (x_dir * PLAYER_SPD_X);
 
 	// Limit Horizontal Movement
 	if (player->box.x < 0) { player->box.x = 0; }
 	if (player->box.x > (GAME_W - player->box.w)) { player->box.x = (GAME_W - player->box.w); }
 
-	// Fire Bullets
-	if (CHECK_BIT_BOOL(g_Input, INPUT_FIRE) && !bullets[PLAYER_BULLET].isActive)
+	// Fire Bullet
+	if (CHECK_INPUT(g_Input, INPUT_FIRE) && !player->bullet->speed != 0)
 	{
-		bullets[PLAYER_BULLET] = InitBullet(player->box.x, player->box.y, 0, -8);
+		SpawnBullet(player->bullet, player->box.x + (player->box.w / 2), player->box.y, -6);
 	}
 }
 

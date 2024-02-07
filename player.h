@@ -10,8 +10,7 @@
 
 typedef struct {
 	SDL_Rect box;
-	int speed;
-	int state;
+	Bullet *bullet;
 } Player;
 
 // Globals
@@ -21,7 +20,7 @@ extern Uint8 g_Input;
 // Functions
 
 void InitPlayer(Player *player);
-void UpdatePlayer(Player *player, Bullet *bullets);
+void UpdatePlayer(Player *player);
 void RenderPlayer(SDL_Renderer *renderer, Player *player);
 
 #endif // _PLAYER_H_

@@ -6,15 +6,14 @@
 
 // Data Structs
 
-typedef struct  {
+typedef struct {
 	SDL_Rect box;
-	SDL_Point speed;
-	int isActive;
+	int speed;
 } Bullet;
 
 // Functions
 
-Bullet InitBullet(int x, int y, int x_speed, int y_speed);
+void SpawnBullet(Bullet *bullet, int x, int y, int speed);
 void UpdateBullets(Bullet *bullets);
 void RenderBullets(SDL_Renderer *renderer, Bullet *bullets);
 
