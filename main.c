@@ -2,17 +2,20 @@
 #include "defines.h"
 #include "input.h"
 #include "player.h"
-#include "swarm.h"
+#include "enemy.h"
 #include "bullet.h"
 
 ///// Globals /////
 
+//Uint8 g_GameState;
 Uint8 g_Input;
+int g_BulletCount;
 SDL_Scancode g_Bindings[INPUT_SIZE];
 
 ///// Functions /////
 
 void DrawBackground(SDL_Renderer *renderer);
+//void CheckCollision(Player *player, Bullet *bulletss, Swarm *swarm);
 
 ///// Main /////
 
@@ -31,23 +34,23 @@ int main(int argc, char **argv)
 
 	///// Init. Game /////
 
+
 	// Key Bindings
 	g_Bindings[INPUT_LEFT]	= SDL_SCANCODE_LEFT;
 	g_Bindings[INPUT_RIGHT]	= SDL_SCANCODE_RIGHT;
 	g_Bindings[INPUT_FIRE]	= SDL_SCANCODE_SPACE;
 	g_Bindings[INPUT_PAUSE]	= SDL_SCANCODE_ESCAPE;
 
+	// Init. Bullet Count
+	g_BulletCount = 0;
+
+	// Entities
+	Entity entities[ENTITY_COUNT] = {0};	// All entities. Player index: 0, Enemies indexes: 1 to 55, UFO index: 56.
+	Entity bullets[ENTITY_COUNT] = {0};	// All bullets. Same indexes as the previous.
 	// Player
-	Player player;
-	InitPlayer(&player);
-
-	// Swarm
-	//Swarm swarm;
-	//InitSwarm(&swarm);
-
-	// Bullets
-	Bullet bullets[BULLET_COUNT] = {0};
-	player.bullet = &bullets[0];
+	InitPlayer(&entities[ENTITY_PLAYER]);
+	// Enemy
+	InitEnemies(entities);
 
 	///// Main Loop /////
 
@@ -62,24 +65,27 @@ int main(int argc, char **argv)
 			HandleInput(&event);
 		}
 
+		///// Update /////
+		
 		// Player
-		UpdatePlayer(&player);
+		UpdatePlayer(&entities[ENTITY_PLAYER], bullets);
 		// Swarm
-		//UpdateSwarm(&swarm);
+		UpdateEnemies(entities);
 		// Bullets
 		UpdateBullets(bullets);
 
 		///// Collision Detection /////
-		//CheckCollision(&player, &bullets, &swarm);
+
+		//CheckCollision(&player, bulletss, &swarm);
 
 		///// Render /////
 
 		// Background
 		DrawBackground(renderer);
 		// Player
-		RenderPlayer(renderer, &player);
+		RenderPlayer(renderer, &entities[ENTITY_PLAYER]);
 		// Swarm
-		//RenderSwarm(renderer, &swarm);
+		RenderEnemies(renderer, entities);
 		// Bullets
 		RenderBullets(renderer, bullets);
 
@@ -105,6 +111,41 @@ void DrawBackground(SDL_Renderer * renderer)
 	// Lines Color
 	SDL_SetRenderDrawColor(renderer, 0xA0, 0xA0, 0xA0, 0xFF);
 	// Top and Bottom Lines
-	SDL_RenderDrawLine(renderer, 0, 16, GAME_W, 16);
-	SDL_RenderDrawLine(renderer, 0, GAME_H - 16, GAME_W, GAME_H - 16);
+	SDL_RenderDrawLine(renderer, 0, GAME_BORDER, GAME_W, GAME_BORDER);
+	SDL_RenderDrawLine(renderer, 0, GAME_H - GAME_BORDER, GAME_W, GAME_H - GAME_BORDER);
 }
+
+//void CheckCollision(Player *player, Bullet *bulletss, Swarm *swarm)
+//{
+//	// Player Bullet vs Swarm
+//	for(int i = 0; bulletss[0].speed != 0 && i < swarm->enemyCount; i++)
+//	{
+//		if (CHECK_COLLISION(bulletss[0].box, swarm->enemy[i].box))
+//		{
+//			//printf("Enemy Touched %d\n", i);
+//			swarm->enemyCount--;
+//			for(int j = i; j < swarm->enemyCount; j++)
+//			{
+//				swarm->enemy[j] = swarm->enemy[j + 1];
+//			}
+//			bulletss[0].speed = 0;
+//		}
+//	}
+//
+//	// Bullet / Player vs Bullet
+//	for(int i = 1;  i < BULLET_COUNT; i++)
+//	{
+//		// Vs Player Bullet
+//		if (bulletss[0].speed != 0 && CHECK_COLLISION(bulletss[0].box, bulletss[i].box))
+//		{
+//			bulletss[0].speed = 0;
+//			bulletss[i].speed = 0;
+//		}
+//
+//		// Vs Player
+//		if (CHECK_COLLISION(player->box, bulletss[i].box))
+//		{
+//			bulletss[i].speed = 0;
+//		}
+//	}
+//}

@@ -1,20 +1,17 @@
 #ifndef _BULLET_H_
 #define _BULLET_H_
 
-#include <SDL2/SDL.h>
 #include "defines.h"
+#include "entity.h"
 
-// Data Structs
+// Globals
 
-typedef struct {
-	SDL_Rect box;
-	int speed;
-} Bullet;
+extern int g_BulletCount;
 
 // Functions
 
-void SpawnBullet(Bullet *bullet, int x, int y, int speed);
-void UpdateBullets(Bullet *bullets);
-void RenderBullets(SDL_Renderer *renderer, Bullet *bullets);
+void SpawnBullet(Entity *bullet, int x, int y, int speed);
+void UpdateBullets(Entity *bullets);
+void RenderBullets(SDL_Renderer *renderer, Entity *bullets);
 
 #endif // _BULLET_H_

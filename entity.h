@@ -3,15 +3,19 @@
 
 #include <SDL2/SDL.h>
 
-enum EntityShifts
-{
-
+enum EntityState {
+	ENTITY_NONE,
+	ENTITY_START,
+	ENTITY_PLAY,
+	ENTITY_END,
+	ENTITY_ENEMY_DROP
 };
-
 typedef struct {
 	SDL_Rect box;
-	SDL_Point speed;
+	int speed;
 	Uint8 state;
+	Uint8 waitTime;
+	//Sprite sprite;
 } Entity;
 
 #endif //_ENTITY_H_

@@ -1,31 +1,36 @@
 #include "player.h"
 
-void InitPlayer(Player *player)
+void InitPlayer(Entity *player)
 {
-	player->box.x = (GAME_W / 2) - (PLAYER_W / 2);
-	player->box.y = (GAME_H - (GAME_BORDER * 2));
-	player->box.w = PLAYER_W;
-	player->box.h = PLAYER_H;
+	// Init. Player
+	*player = (Entity) {
+		{PLAYER_X, PLAYER_Y, PLAYER_W, PLAYER_H},
+		PLAYER_SPEED,
+		ENTITY_PLAY,
+		0
+	};
 }
 
-void UpdatePlayer(Player *player)
+void UpdatePlayer(Entity *player, Entity *bullet)
 {
-	// Input
-	int x_dir = (CHECK_INPUT(g_Input, INPUT_RIGHT)) - (CHECK_INPUT(g_Input, INPUT_LEFT));
-	player->box.x += (x_dir * PLAYER_SPD_X);
+	if (player->state == ENTITY_PLAY) {
+		// Input
+		int x_dir = (CHECK_BIT(g_Input, INPUT_RIGHT)) - (CHECK_BIT(g_Input, INPUT_LEFT));
+		player->box.x += (x_dir * player->speed);
 
-	// Limit Horizontal Movement
-	if (player->box.x < 0) { player->box.x = 0; }
-	if (player->box.x > (GAME_W - player->box.w)) { player->box.x = (GAME_W - player->box.w); }
+		// Limit Horizontal Movement
+		if (player->box.x < 0) { player->box.x = 0; }
+		if (player->box.x + player->box.w > GAME_W) { player->box.x = (GAME_W - player->box.w); }
 
-	// Fire Bullet
-	if (CHECK_INPUT(g_Input, INPUT_FIRE) && !player->bullet->speed != 0)
-	{
-		SpawnBullet(player->bullet, player->box.x + (player->box.w / 2), player->box.y, -6);
+		// Fire Bullet
+		if (CHECK_BIT(g_Input, INPUT_FIRE) && (bullet->state == ENTITY_NONE))
+		{
+			SpawnBullet(bullet, player->box.x + (player->box.w / 2), player->box.y, -6);
+		}
 	}
 }
 
-void RenderPlayer(SDL_Renderer *renderer, Player *player)
+void RenderPlayer(SDL_Renderer *renderer, Entity *player)
 {
 	// Render Collision Box
 	SDL_SetRenderDrawColor(renderer, 0, 0xFF ,0, 0xFF);

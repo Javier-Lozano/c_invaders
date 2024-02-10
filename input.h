@@ -4,7 +4,7 @@
 #include <SDL2/SDL.h>
 #include "defines.h"
 
-enum InputShifts {
+enum InputKeys {
 	INPUT_LEFT,
 	INPUT_RIGHT,
 	INPUT_FIRE,
