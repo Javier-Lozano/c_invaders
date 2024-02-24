@@ -3,29 +3,30 @@
 
 #include <stdbool.h>
 #include "defines.h"
-#include "system.h"
+#include "rendering.h"
+#include "resources.h"
 
 ////// Data Structures
 
 typedef enum {
 	SCENE_TITLE,
 	SCENE_PLAY,
-	SCENE_CREDITS
+	SCENE_CREDITS,
+	SCENE_EXIT
 } GameScene;
 
 //// Globals
 
 extern GameScene	g_GameScene;
-extern SDL_Event	g_Event;
-extern bool		g_MainLoop;
+extern Resources	g_Resources;
+extern SDL_Renderer	*g_Renderer;
 
 ///// Functions
 
-void Game_SceneTitle();
-void Game_ScenePlay();
-void Game_SceneCredits();
+void Scene_Title();
+void Scene_Play();
+void Scene_Credits();
 
-// Background Starfield
-void Game_Background();
+void Scene_Background();
 
 #endif //_GAME_SCENE_H_

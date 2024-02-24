@@ -11,7 +11,4 @@
 #define GAME_H 256
 #define GAME_DEFAULT_SCALE 2
 
-// Scenes
-#define BG_STARS 150
-
 #endif //_DEFINES_H_

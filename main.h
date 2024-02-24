@@ -3,8 +3,7 @@
 
 #include <stdbool.h>
 #include <SDL2/SDL.h>
-#include "defines.h"
-#include "system.h"
+#include "init.h"
 #include "scene.h"
 
 #endif //_MAIN_H_

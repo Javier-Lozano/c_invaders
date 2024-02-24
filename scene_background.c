@@ -1,48 +1,80 @@
 #include "scene.h"
 
-// A Starfield Background
-void Game_Background()
+///// Macros
+
+#define STARS 150
+
+///// Globals
+
+static SDL_Color g_Colors[] = {
+	{0xFF, 0xFF, 0xFF, 0xFF},
+	{0xFF, 0, 0, 0xFF},
+	{0, 0xFF, 0, 0xFF},
+	{0, 0, 0xFF, 0xFF},
+	{0xFF, 0xFF, 0, 0xFF},
+	{0xFF, 0, 0xFF, 0xFF},
+	{0, 0xFF, 0xFF, 0xFF}
+};
+
+///// Starfield Background
+
+void Scene_Background()
 {
 	// Variables
-	static SDL_Point star[BG_STARS];
-	static SDL_Color color[BG_STARS];
 	static bool do_once = true;
+	static SDL_Point star[STARS];
+	static float angle[STARS];
 
-	// Initialize Stars
+	// Init. Stars
 	if (do_once)
 	{
-		for(int i = 0; i < BG_STARS; i++)
+		for(int i = 0; i < STARS; i++)
 		{
-			color[i].r = (rand() % 0xA0) + 0x7F;
-			color[i].g = (rand() % 0x80) + 0x60;
-			color[i].b = (rand() % 0x60) + 0x40;
 			star[i].x = rand() % GAME_W;
 			star[i].y = rand() % GAME_H;
+			angle[i] = (rand() % 314) / 100.0f;
 		}
 		do_once = false;
 	}
 
-	for(int i = 0; i < BG_STARS; i++)
+	// Update all stars
+	for(int i = 0; i < STARS; i++)
 	{
-		if (i < 50)
+		// Get color
+		SDL_Color color = g_Colors[(i + 1) % 7];
+
+		// Get brigthness value
+		float value = SDL_sin(angle[i]);
+
+		// Move angle
+		angle[i] += 0.03f;
+		if (angle[i] > 3.14) { angle[i] -= 3.14f; }
+
+		// First half moves slow
+		if (i < (STARS / 2))
 		{
 			star[i].y += 1;
+			value *= 0x90;
 		}
-		else if (i >= 50 && i < 100)
+		// Second Hald moves faster
+		else
 		{
 			star[i].y += 2;
-		}
-		else if (i >= 100)
-		{
-			star[i].y += 4;
+			value *= 0xB8;
 		}
 
+		// Once a Star reached bottom move it back to the top
 		if (star[i].y > GAME_H)
 		{
 			star[i].y -= GAME_H;
 		}
 
-		SDL_SetRenderDrawColor(g_Renderer, color[i].r, color[i].g, color[i].b, 0xFF);
+		// Set brightness
+		if (color.r != 0) { color.r = (int) value; }
+		if (color.g != 0) { color.g = (int) value; }
+		if (color.b != 0) { color.b = (int) value; }
+
+		SDL_SetRenderDrawColor(g_Renderer, color.r, color.g, color.b, color.a);
 		SDL_RenderDrawPoint(g_Renderer, star[i].x, star[i].y);
 	}
 }
