@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <SDL2/SDL.h>
+#include "font.h"
 
 ///// Macros
 
@@ -12,7 +13,19 @@
 
 typedef struct {
 	SDL_Texture **textures;
+	BitmapFont *font;
 } Resources;
+
+enum {
+	C_WHITE,
+	C_RED,
+	C_GREEN,
+	C_BLUE,
+	C_YELLOW,
+	C_MAGENTA,
+	C_CYAN,
+	C_COUNT
+};
 
 enum {
 	TEXTURE_TITLE,

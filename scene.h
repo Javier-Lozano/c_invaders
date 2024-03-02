@@ -20,6 +20,7 @@ typedef enum {
 extern GameScene	g_GameScene;
 extern Resources	g_Resources;
 extern SDL_Renderer	*g_Renderer;
+extern SDL_Color g_Colors[C_COUNT];
 
 ///// Functions
 

@@ -23,11 +23,12 @@ int main(int argc, char *arcv[])
 			{
 				case SCENE_TITLE:
 					Scene_Title();
-					break;
+					continue;
 				case SCENE_PLAY:
-					break;
+					Scene_Play();
+					continue;
 				case SCENE_CREDITS:
-					break;
+					continue;
 				case SCENE_EXIT:
 					loop = false;
 					break;

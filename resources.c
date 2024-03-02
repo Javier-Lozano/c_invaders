@@ -2,7 +2,18 @@
 
 ///// Globals
 
+SDL_Color g_Colors[] = {
+	{0xFF, 0xFF, 0xFF, 0xFF},	// WHITE
+	{0xFF, 0, 0, 0xFF},			// RED
+	{0, 0xFF, 0, 0xFF},			// GREEN
+	{0, 0, 0xFF, 0xFF},			// BLUE
+	{0xFF, 0xFF, 0, 0xFF},		// YELLOW
+	{0xFF, 0, 0xFF, 0xFF},		// MAGENTA
+	{0, 0xFF, 0xFF, 0xFF}		// CYAN
+};
+
 Resources g_Resources;
+
 
 extern SDL_Renderer *g_Renderer;
 
@@ -10,19 +21,41 @@ static bool LoadTexture(const char *path, SDL_Texture **texture_ptr);
 
 bool Resources_Init()
 {
-	int success;
 	// Load Textures
-	g_Resources.textures = (SDL_Texture**)malloc(sizeof(SDL_Texture*) * TEXTURE_COUNT);
+	g_Resources.textures = (SDL_Texture**)calloc(TEXTURE_COUNT, sizeof(SDL_Texture*));
 
-	success = LoadTexture("resources/title.bmp", &g_Resources.textures[TEXTURE_TITLE]);
+	LoadTexture("resources/title.bmp", &g_Resources.textures[TEXTURE_TITLE]);
+	LoadTexture("resources/font.bmp", &g_Resources.textures[TEXTURE_FONT]);
 
-	return success;
+	for(int i = 0; i < 2; i++)
+	{
+		if (g_Resources.textures[i] == NULL) { return false; }
+	}
+
+	// Create Font
+	g_Resources.font = FontCreate(g_Resources.textures[TEXTURE_FONT], " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_ÁÉÍÓÚÑ♠♥♦♣", 8, 8);
+	if (g_Resources.font == NULL) { return false; }
+
+	return true;
 }
 
 void Resources_End()
 {
-	SDL_DestroyTexture(g_Resources.textures[TEXTURE_TITLE]);
-	free(g_Resources.textures);
+	// Destroy Textures
+	if (g_Resources.textures != NULL)
+	{
+		for(int i = 0; i < 2; i++)
+		{
+			if (g_Resources.textures[i] != NULL)
+			{
+				SDL_DestroyTexture(g_Resources.textures[i]);
+			}
+		}
+		free(g_Resources.textures);
+	}
+
+	// Destroy Font
+	FontDestroy(g_Resources.font);
 }
 
 static bool LoadTexture(const char *path, SDL_Texture **texture_ptr)
