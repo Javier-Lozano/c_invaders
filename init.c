@@ -1,100 +1,54 @@
 #include "c_invaders.h"
 
-///// Functions
+/***** Globals *****/
 
-static int InitSDL(GameState *game_state);
-static int InitTarget(Target *target, SDL_Renderer *renderer);
+SDL_Window   *g_Window;
+SDL_Renderer *g_Renderer;
+bool         g_MainLoop;
 
-int Game_Init(GameState *game_state)
+/***** Functions *****/
+
+bool Game_Init()
 {
-	// Init in bundle
-	if (!InitSDL(game_state) || !InitTarget(&game_state->target, game_state->renderer))
-	{
-		printf("NOPE\n");
-		return 0;
-	}
-
-	game_state->keybindings[INPUT_UP]     = SDL_SCANCODE_UP;
-	game_state->keybindings[INPUT_DOWN]   = SDL_SCANCODE_DOWN;
-	game_state->keybindings[INPUT_LEFT]   = SDL_SCANCODE_LEFT;
-	game_state->keybindings[INPUT_RIGHT]  = SDL_SCANCODE_RIGHT;
-	game_state->keybindings[INPUT_FIRE]   = SDL_SCANCODE_X;
-	game_state->keybindings[INPUT_CANCEL] = SDL_SCANCODE_Z;
-
-	// game_state->scene = SCENE_INTRO;
-
-	game_state->is_running = 1;
-
-	return 1;
-}
-
-void Game_Close(GameState *game_state)
-{
-	// Destroy Target Texture
-	SDL_DestroyTexture(game_state->target.texture);
-	// SDL Window and Renderer
-	SDL_DestroyRenderer(game_state->renderer);
-	SDL_DestroyWindow(game_state->window);
-
-	SDL_Quit();
-}
-
-static int InitSDL(GameState *game_state)
-{
-	// Variables
-	SDL_Window   *window;
-	SDL_Renderer *renderer;
-
 	// Init SDL
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
-		fprintf(stderr, "Error: Couldn't init. SDL. %s.\n", SDL_GetError());
-		return 0;
+		fprintf(stderr, "Error: Couldn't init SDL. %s\n", SDL_GetError());
+		return false;
 	}
 
-	// Window
-	window = SDL_CreateWindow("C Invaders", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIN_W, WIN_H, SDL_WINDOW_SHOWN);
-	if (window == NULL)
+	g_Window = SDL_CreateWindow("C Invaders", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIN_W, WIN_H, SDL_WINDOW_SHOWN);
+	if (g_Window == NULL)
 	{
-		fprintf(stderr, "Error: Couldn't create window. %s.\n", SDL_GetError());
-		return 0;
+		fprintf(stderr, "Error: Couldn't create Window. %s\n", SDL_GetError());
+		return false;
 	}
-
-	// Renderer
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	if (renderer == NULL)
+	
+	g_Renderer = SDL_CreateRenderer(g_Window, -1, SDL_RENDERER_ACCELERATED);
+	if (g_Renderer == NULL)
 	{
-		fprintf(stderr, "Error: Couldn't create renderer. %s.\n", SDL_GetError());
-		SDL_DestroyWindow(window);
-		return 0;
+		fprintf(stderr, "Error: Couldn't create Renderer. %s\n", SDL_GetError());
+		return false;
 	}
 
-	// Fill game_state
-	game_state->window   = window;
-	game_state->renderer = renderer;
+	// Input
+	g_Input.key_map[INPUT_UP] = SDL_SCANCODE_UP;
+	g_Input.key_map[INPUT_DOWN] = SDL_SCANCODE_DOWN;
+	g_Input.key_map[INPUT_LEFT] = SDL_SCANCODE_LEFT;
+	g_Input.key_map[INPUT_RIGHT] = SDL_SCANCODE_RIGHT;
+	g_Input.key_map[INPUT_FIRE] = SDL_SCANCODE_X;
+	g_Input.key_map[INPUT_CANCEL] = SDL_SCANCODE_Z;
 
-	return 1;
+	// Control
+	g_MainLoop = true;
+
+	return true;
 }
 
-static int InitTarget(Target *target, SDL_Renderer *renderer)
+void Game_Close()
 {
-	// Variables
-	SDL_Texture *texture;
-	SDL_Rect    rect = {.w = WIN_W, .h = WIN_H};
-	Uint8       scale = SCALE;
+	SDL_DestroyRenderer(g_Renderer);
+	SDL_DestroyWindow(g_Window);
 
-	// Target texture
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, WIN_W, WIN_H);
-	if (target == NULL)
-	{
-		fprintf(stderr, "Error: Couldn't create target texture. %s.\n", SDL_GetError());
-		return 0;
-	}
-
-	// Fill Target
-	target->texture = texture;
-	target->rect    = rect;
-	target->scale   = scale;
-
-	return 1;
+	SDL_Quit();
 }

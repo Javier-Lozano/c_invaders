@@ -1,28 +1,42 @@
 #include "c_invaders.h"
 
-void Game_HandleEvents(GameState *game_state)
+/***** Globals *****/
+
+double g_DeltaTime;
+
+/***** Functions *****/
+
+static void ProcessDeltaTime();
+
+void Game_HandleEvents()
 {
-	// Variables
-	static Uint64 previous;
-	static Uint64 current;
+	// Varibales
 	SDL_Event e;
 
-	// Get Delta Time
-	if (previous == 0) { current = SDL_GetPerformanceCounter(); }
-	previous = current;
-	current = SDL_GetPerformanceCounter();
-	game_state->delta_time = (double) (current - previous) / (double) SDL_GetPerformanceFrequency();
-
-	// Process Events
 	while(SDL_PollEvent(&e))
 	{
 		switch(e.type)
 		{
 			case SDL_QUIT:
-				game_state->is_running = false;
-				break;
-			case SDL_WINDOWEVENT:
+				g_MainLoop = false;
 				break;
 		}
 	}
+
+	// Update Player Input
+	Input_UpdateInput();
+
+	// Delta Time
+	ProcessDeltaTime();
+}
+
+static void ProcessDeltaTime()
+{
+	static Uint64 past;
+	static Uint64 present;
+
+	if (past == 0) { present = SDL_GetPerformanceCounter(); }
+	past = present;
+	present = SDL_GetPerformanceCounter();
+	g_DeltaTime = (double)(present - past) / (double)SDL_GetPerformanceFrequency();
 }
