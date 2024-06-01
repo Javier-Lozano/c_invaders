@@ -51,7 +51,7 @@ typedef struct {
 
 void InitStage(Entity *entity, int stage);
 void UpdatePlayer(Entity *player, Entity *player_bullet);
-int  UpdateEnemies(Entity *enemy, Entity *enemy_bullets, Entity *ufo, int stage);
+int  UpdateEnemies(Entity *enemy, Entity *enemy_bullets, Entity *ufo, double *timer, int *index, int *direction, int stage);
 void ProcessCollisions(Entity *entity);
 bool CheckCollision(SDL_FRect *a, SDL_FRect *b);
 void RenderStage(Entity *entity);

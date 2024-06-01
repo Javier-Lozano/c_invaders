@@ -10,6 +10,9 @@ int main (int argc, char *argv[])
 	int stage = 0;
 	int lives = 3;
 	int remaining = 55;
+	double enemy_timer = 0.0f;
+	int enemy_index = 0;
+	int enemy_direction = 1;
 
 	// Init Stage
 	InitStage(entity, stage);
@@ -28,7 +31,7 @@ int main (int argc, char *argv[])
 			{
 				UpdatePlayer(&entity[ID_PLAYER], &entity[ID_BULLET_P]);
 
-				remaining = UpdateEnemies(&entity[ID_ENEMY], &entity[ID_BULLET_E], &entity[ID_UFO], stage);
+				remaining = UpdateEnemies(&entity[ID_ENEMY], &entity[ID_BULLET_E], &entity[ID_UFO], &enemy_timer, &enemy_index, &enemy_direction, stage);
 
 				ProcessCollisions(entity);
 			}
@@ -36,6 +39,9 @@ int main (int argc, char *argv[])
 			if (remaining == 0)
 			{
 				stage++;
+				enemy_timer = 0.0f;
+				enemy_index = 0;
+				enemy_direction = 1;
 				InitStage(entity, stage);
 			}
 
@@ -60,8 +66,8 @@ void InitStage(Entity *entity, int stage)
 	// Player
 	player->box.w = 8;
 	player->box.h = 8;
-	player->box.x = 112;
-	player->box.y = 272;
+	player->box.x = 104;
+	player->box.y = 216;
 	player->type = TYPE_PLAYER;
 	player->state = STATE_ALIVE;
 
@@ -71,8 +77,8 @@ void InitStage(Entity *entity, int stage)
 		int col = (i % 11);
 		int row = (i / 11);
 
-		int start_y = 144 + (stage * 16);
-		if (start_y > 240) { start_y = 240; }
+		int start_y = 128 + (stage * 16);
+		if (start_y > 184) { start_y = 184; }
 
 		enemy[i].box.w = 8;
 		enemy[i].box.h = 8;
@@ -138,75 +144,78 @@ void UpdatePlayer(Entity *player, Entity *player_bullet)
 	}
 }
 
-int UpdateEnemies(Entity *enemy, Entity *enemy_bullets, Entity *ufo, int stage)
+int UpdateEnemies(Entity *enemy, Entity *enemy_bullets, Entity *ufo, double *timer, int *index, int *direction, int stage)
 {
-	static double enemy_timer;
-	static int direction = 1;
-	static int pivot;
+	// Variables
+	int defeated = ENEMY_COUNT;
 	int first_enemy = -1;
 	bool drop = false;
-	int defeated = ENEMY_COUNT;
 
-	for(int i = 0; i < ENEMY_COUNT; i++)
+	// Enemies update every 1/60 of a second
+	*timer += g_DeltaTime;
+	if (*timer > 0.0166666f)
 	{
-		// Check Enemy Bullets
+		// Reset timer
+		*timer = 0.0f;
 
-		// Check Enemies
-		if (CHECK_ALIVE(enemy[i].state))
+		// If enemy was defeated move index to a valid enemy
+		while( !(CHECK_ALIVE(enemy[*index].state)) )
 		{
-			// Find first enemy;
-			if (first_enemy < 0)
-			{
-				first_enemy = i;
-			}
+			// Move to next index
+			*index = (*index + 1) % ENEMY_COUNT;
 
-			// Check edges
-			if ((direction == 1 && enemy[i].box.x + 8 >= WIN_W) || (direction == -1 && enemy[i].box.x <= 0))
-			{
-				drop = true;
-			}
-		}
-	}
-
-	// Update Enemy after a 60th of a second
-	enemy_timer += g_DeltaTime;
-	if (enemy_timer > 0.01666f)
-	{
-		// Reset Timer
-		enemy_timer = 0.0f;
-
-		while( !CHECK_ALIVE(enemy[pivot].state) )
-		{
-			defeated--;
-			if (defeated == 0)
+			// Count defeated enemies
+			if (--defeated == 0)
 			{
 				return defeated;
 			}
-
-			// Move pivot to next enemy
-			pivot = (pivot + 1) % ENEMY_COUNT;
 		}
 
-		if (pivot == first_enemy & drop)
+		// Get First enemy
+		for(int i = 0; i < ENEMY_COUNT; i++)
+		{
+			if ( (CHECK_ALIVE(enemy[i].state)) )
+			{
+				// Get First enemy
+				if (first_enemy < 0)
+				{
+					first_enemy = i;
+				}
+
+				// Check edges
+				if ( (*direction == 1 && (enemy[i].box.x > WIN_W - 8)) || (*direction == -1 && (enemy[i].box.x < 8)) )
+				{
+					drop = true;
+				}
+			}
+		}
+
+		// Check if enemies should drop
+		if ((*index == first_enemy) && drop)
 		{
 			drop = false;
-			direction *= -1;
+			*direction *= -1;
 			for(int i = 0; i < ENEMY_COUNT; i++)
 			{
-				enemy[i].state |= STATE_DROP;
+				if ( (CHECK_ALIVE(enemy[i].state)) )
+				{
+					enemy[i].state |= STATE_DROP;
+				}
 			}
 		}
 
 		// Move enemy
-		enemy[pivot].box.x += direction * 2;
-		if (enemy[pivot].state & STATE_DROP)
+		enemy[*index].box.x += 2 * (*direction);
+
+		// Drop enemy a row
+		if (enemy[*index].state & STATE_DROP)
 		{
-			enemy[pivot].state &= ~STATE_DROP;
-			enemy[pivot].box.y += 8;
+			enemy[*index].state &= ~STATE_DROP;
+			enemy[*index].box.y += 8;
 		}
 
-		// Move pivot to next enemy
-		pivot = (pivot + 1) % ENEMY_COUNT;
+		// Move index
+		*index = (*index + 1) % 55;
 	}
 
 	return defeated;
