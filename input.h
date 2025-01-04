@@ -2,6 +2,7 @@
 #define INPUT_H_
 
 #include "SDL.h"
+#include "common_types.h"
 
 /***** Enums *****/
 
@@ -10,7 +11,7 @@ typedef enum {
 	STATE_DOWN     = 1,
 	STATE_PRESSED  = 2,
 	STATE_RELEASED = 4
-} InputState;
+} PressState;
 
 typedef enum {
 	BUTTON_LEFT,

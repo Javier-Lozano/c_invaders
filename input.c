@@ -1,35 +1,29 @@
 #include "input.h"
 
-/***** Struct *****/
-
 struct input_st {
-	Uint8 key_state[SDL_NUM_SCANCODES];
-	Uint8 msb_state[BUTTON_COUNT];
+	u8 key_state[SDL_NUM_SCANCODES];
+	u8 msb_state[BUTTON_COUNT];
 	SDL_Point mouse_position;
 	SDL_Point mouse_delta;
-};
+} static g_Input;
 
-/***** Globals *****/
-
-static struct input_st g_Input;
-
-/***** Functions (Prototypes) *****/
-
-static int CheckScancode(SDL_Scancode scancode, InputState state);
-static int CheckMouseButton(MouseButton button, InputState state);
-
-/***** Functions *****/
+static int CheckScancode(SDL_Scancode scancode, PressState state);
+static int CheckMouseButton(MouseButton button, PressState state);
 
 void ProcessInput()
 {
+	// Store Mouse and Keyboard previous "Press Down" State and
+	// compare it with the current State. This allows for checking
+	// if a key or button was just pressed or released
+
 	int mouse_x, mouse_y;
-	const Uint8  sdl_msb_state = SDL_GetMouseState(&mouse_x, &mouse_y);
-	const Uint8 *sdl_key_state = SDL_GetKeyboardState(NULL);
+	const u8  sdl_msb_state = SDL_GetMouseState(&mouse_x, &mouse_y);
+	const u8 *sdl_key_state = SDL_GetKeyboardState(NULL);
 
 	// Keyboard
 	for(int i = 0; i < SDL_NUM_SCANCODES; i++)
 	{
-		Uint8 state = 0;
+		u8 state = 0;
 		if (sdl_key_state[i])
 		{
 			state = STATE_DOWN;
@@ -47,7 +41,7 @@ void ProcessInput()
 	// Mouse Buttons
 	for(int i = 0; i < BUTTON_COUNT; i++)
 	{
-		Uint8 state = 0;
+		u8 state = 0;
 		if (sdl_msb_state & (1 << i))
 		{
 			state = STATE_DOWN;
@@ -71,7 +65,7 @@ void ProcessInput()
 
 // Keyboard
 
-static int CheckScancode(SDL_Scancode scancode, InputState state)
+static int CheckScancode(SDL_Scancode scancode, PressState state)
 {
 	return (g_Input.key_state[scancode] & state) == state;
 }
@@ -93,7 +87,7 @@ int IsKeyReleased(SDL_Keycode key)
 
 // Mouse
 
-static int CheckMouseButton(MouseButton button, InputState state)
+static int CheckMouseButton(MouseButton button, PressState state)
 {
 	return (g_Input.msb_state[button] & state) == state;
 }

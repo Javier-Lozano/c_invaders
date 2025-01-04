@@ -1,46 +1,49 @@
+#include "SDL.h"
+#include "SDL_mixer.h"
 #include "assets.h"
+#include "common.h"
 
-/***** Globals *****/
+#define SPRITESHEET_PATH "assets/spritesheet.bmp"
 
 static SDL_Texture *g_SpriteSheetTexture;
 static SDL_Surface *g_SpriteSheetSurface;
-//static SDL_Surface *g_Shields;
-//static int g_ShieldTilemap [] = {
-//};
+static Mix_Chunk   *g_SFX[SFX_COUNT];
 
-/***** Functions *****/
-
-int InitAssets()
+void InitAssets(SDL_Renderer *renderer)
 {
 	SDL_Surface *surface;
 	SDL_Texture *texture;
+	Mix_Chunk   *sound[SFX_COUNT];
 
 	surface = SDL_LoadBMP(SPRITESHEET_PATH);
-	if (surface == NULL)
-		goto assets_init_error;
+	ASSERT(surface, "Couldn't load spritesheet.");
 
-	texture = SDL_CreateTextureFromSurface(GetRenderer(), surface);
-	if (texture == NULL)
-		goto assets_init_error;
+	SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 0, 0, 0));
+
+	texture = SDL_CreateTextureFromSurface(renderer, surface);
+	ASSERT(texture, "Couldn't create texture.");
+
+	sound[0] = Mix_LoadWAV("assets/14_item2.wav");
+	sound[1] = Mix_LoadWAV("assets/09_select1.wav");
+	sound[2] = Mix_LoadWAV("assets/80_chaindone.wav");
+	for(int i = 0; i < SFX_COUNT; i++)
+	{
+		ASSERT(sound[i], "Couldn't load sound.");
+	}
 
 	g_SpriteSheetTexture = texture;
 	g_SpriteSheetSurface = surface;
-
-	return 1;
-
-assets_init_error:
-	printf("Couldn't initialize assets. %s\n", SDL_GetError());
-	return 0;
+	SDL_memcpy(g_SFX, sound, sizeof(Mix_Chunk) * SFX_COUNT);
 }
 
-void CloseAssets()
+void FreeAssets()
 {
 	SDL_DestroyTexture(g_SpriteSheetTexture);
 	SDL_FreeSurface(g_SpriteSheetSurface);
 //	SDL_FreeSurface(g_Shields);
 }
 
-void DrawSprite(int index, int x, int y)
+void DrawSprite(SDL_Renderer *renderer, int index, int x, int y)
 {
 	if (index < 0 || index > 0x7F)
 		return;
@@ -58,30 +61,38 @@ void DrawSprite(int index, int x, int y)
 		.h = SPRITE_SIZE
 	};
 
-	SDL_RenderCopy(GetRenderer(), g_SpriteSheetTexture, &source, &target);
+	SDL_RenderCopy(renderer, g_SpriteSheetTexture, &source, &target);
 }
 
-void DrawSpriteColor(int index, int x, int y, Uint32 color)
+void DrawSpriteColor(SDL_Renderer *renderer, int index, int x, int y, u32 color)
 {
+	SDL_Color c;
+	SDL_GetTextureColorMod(g_SpriteSheetTexture, &c.r, &c.g, &c.b);
+	SDL_GetTextureAlphaMod(g_SpriteSheetTexture, &c.a);
+
 	SDL_SetTextureColorMod(g_SpriteSheetTexture,
 			(color >> 24) & 0xFF,
 			(color >> 16) & 0xFF,
 			(color >>  8) & 0xFF);
 	SDL_SetTextureAlphaMod(g_SpriteSheetTexture, color & 0xFF);
 
-	DrawSprite(index, x, y);
+	DrawSprite(renderer, index, x, y);
 
-	SDL_SetTextureAlphaMod(g_SpriteSheetTexture, 0xFF);
-	SDL_SetTextureColorMod(g_SpriteSheetTexture, 0xFF, 0xFF, 0xFF);
+	SDL_SetTextureAlphaMod(g_SpriteSheetTexture, c.a);
+	SDL_SetTextureColorMod(g_SpriteSheetTexture, c.r, c.g, c.b);
 }
 
-int DrawText(const char *str, int x, int y, Uint32 color, ...)
+int DrawText(SDL_Renderer *renderer, const char *str, int x, int y, u32 color, ...)
 {
 	char temp[256];
 	va_list args;
 	int xx = x;
 	int yy = y;
 	int count = 0;
+
+	SDL_Color c;
+	SDL_GetTextureColorMod(g_SpriteSheetTexture, &c.r, &c.g, &c.b);
+	SDL_GetTextureAlphaMod(g_SpriteSheetTexture, &c.a);
 
 	SDL_SetTextureColorMod(g_SpriteSheetTexture,
 			(color >> 24) & 0xFF,
@@ -120,8 +131,11 @@ int DrawText(const char *str, int x, int y, Uint32 color, ...)
 
 				if (str[i] == 'd' || str[i] == 'X' || str[i] == 'f' || str[i] == 'c' || str[i] == 's')
 				{
-					vsnprintf(temp, 256, (char[]){'%', str[i], '\0'}, args);
-					int c = DrawText(temp, xx, yy, color);
+					if (str[i] == 'f')
+						vsnprintf(temp, 256, (char[]){'%', '.', '2', str[i], '\0'}, args);
+					else
+						vsnprintf(temp, 256, (char[]){'%', str[i], '\0'}, args);
+					int c = DrawText(renderer, temp, xx, yy, color);
 					xx += c * SPRITE_SIZE;
 					count += c;
 				}
@@ -135,16 +149,24 @@ int DrawText(const char *str, int x, int y, Uint32 color, ...)
 				tile -= 0x20;
 
 			tile -= 0x20;
-			DrawSprite(tile, xx, yy);
+			DrawSprite(renderer, tile, xx, yy);
 			xx += SPRITE_SIZE;
 			count++;
 		}
 	}
 	va_end(args);
 
-	SDL_SetTextureAlphaMod(g_SpriteSheetTexture, 0xFF);
-	SDL_SetTextureColorMod(g_SpriteSheetTexture, 0xFF, 0xFF, 0xFF);
+	SDL_SetTextureAlphaMod(g_SpriteSheetTexture, c.a);
+	SDL_SetTextureColorMod(g_SpriteSheetTexture, c.r, c.g, c.b);
 
 	return count;
+}
+
+void PlaySound(int index)
+{
+	if (index < 0 || index > SFX_COUNT)
+		return;
+
+	Mix_PlayChannel(-1, g_SFX[index], 0);
 }
 

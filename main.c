@@ -1,12 +1,15 @@
-#include "c_invaders.h"
-#include "rendering.h"
+#include "SDL.h"
+#include "SDL_mixer.h"
+#include "common.h"
 #include "assets.h"
 #include "events.h"
 #include "input.h"
 
-/***** Functions (Prototypes) *****/
+#include "screen_title.c"
+#include "screen_config.c"
 
-void SceneTitle(GameContext *ctx);
+static void Init(GameContext *ctx);
+static void Close(GameContext *ctx);
 
 /***** Main *****/
 
@@ -14,161 +17,96 @@ int main(int argc, char *argv[])
 {
 	GameContext ctx;
 
-	if (!InitSDL() || !InitAssets())
-	{
-		return 0;
-	}
-
-	ctx.is_running = 1;
-	ctx.scene      = SCENE_TITLE;
-	ctx.hiscore    = 37500;
+	Init(&ctx);
 
 	while(ctx.is_running)
 	{
-		switch(ctx.scene)
+		switch(ctx.screen)
 		{
-			case SCENE_TITLE:
-				SceneTitle(&ctx);
+			case SCREEN_TITLE:
+				ScreenTitle(&ctx);
+				break;
+			case SCREEN_CONFIG:
+				ScreenConfig(&ctx);
+				break;
+			case SCREEN_PLAY:
+				ctx.is_running = false;
 				break;
 		}
 	}
 
-	CloseAssets();
-	CloseSDL();
+	Close(&ctx);
 
 	printf("\n\x1B[97;1mSEE YOU SPACE COWBOY...\x1B[0m\n\n");
+
 	return 0;
 }
 
-/***** Functions *****/
-
-void SceneTitle(GameContext *ctx)
+void Init(GameContext *ctx)
 {
-	const Uint32 colors [] = {
-		0xFF0000FF, 0x00FF00FF, 0x0000FFFF, 0xFFFFFFFF
-	};
-	const Uint8 tilemap_c[] = {
-		   0,   0,0x73,0x70,0x70,0x74,   0,   0,
-		   0,0x73,0x72,0x77,0x77,0x71,0x74,   0,
-		0x73,0x72,0x73,0x70,0x70,0x74,0x71,0x74,
-		0x70,0x75,0x70,0x7A,0x79,0x7A,   0,0x70,
-		0x70,0x75,0x70,0x7C,0x7B,0x7C,   0,0x70,
-		0x71,0x74,0x71,0x70,0x70,0x72,0x73,0x72,
-		   0,0x71,0x74,0x78,0x78,0x73,0x72,   0,
-		   0,   0,0x71,0x70,0x70,0x72,   0,   0,
-	};
-	const Uint8 tilemap_invaders[] = {
-		0x70,0x70,0x75,0x76,0x75,0x76,0x70,   0,0x70,0x7B,0x70,0x74,0x75,0x70,0x74,0x75,0x70,0x70,0x75,0x70,0x74,0x7B,0x70,0x74,
-		0x75,0x76,0x75,0x70,0x73,0x76,0x70,   0,0x70,0x75,0x76,0x70,0x75,0x76,0x70,0x75,0x76,   0,0x75,0x76,0x70,0x75,0x76,0x79,
-		0x75,0x76,0x75,0x70,0x70,0x76,0x70,0x77,0x70,0x75,0x70,0x70,0x75,0x76,0x70,0x75,0x70,0x76,0x75,0x70,0x74,0x79,0x70,0x74,
-		0x75,0x76,0x75,0x76,0x71,0x76,0x75,0x70,0x76,0x75,0x76,0x70,0x75,0x76,0x70,0x75,0x76,   0,0x75,0x76,0x70,0x7B,   0,0x70,
-		0x70,0x70,0x75,0x76,0x75,0x76,   0,0x70,   0,0x75,0x76,0x70,0x75,0x70,0x72,0x75,0x70,0x70,0x75,0x76,0x70,0x79,0x70,0x72,
-	};
-	const int cols = WINDOW_W / SPRITE_SIZE;
-	const int rows = WINDOW_H / SPRITE_SIZE;
-	const double step = 1.0f / 30.0f;
+	SDL_memset(ctx, 0, sizeof(GameContext));
 
-	double time = 0.0f;
-	int tile = 0;
-	Uint8 state = 0;
-	int sel = 0;
+	SDL_Window   *window;
+	SDL_Renderer *renderer;
+	SDL_Texture  *target;
 
-	while(ctx->is_running)
-	{
-		// Events
-		ProcessEvents(ctx);
+	const u32 init_flags   = SDL_INIT_VIDEO | SDL_INIT_AUDIO; 
+	const u32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+	const u32 render_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE;
 
-		switch (state)
-		{
-			case 0:
-				{
-					time += GetTimeDelta();
-					if (time >= step)
-					{
-						time -= step;
-						tile += 1;
-					}
-					if (tile > 68)
-					{
-						state = 1;
-					}
-					break;
-				}
-			case 1:
-				{
-				}
-			default:
-				break;
-		}
+	///// Init SDL2
 
-		// Prepare
-		SDL_SetRenderDrawColor(GetRenderer(), 0, 0, 0, 0xFF);
-		SDL_RenderClear(GetRenderer());
+	ASSERT(SDL_Init(init_flags) == 0, SDL_GetError());
+	ASSERT(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096) == 0, Mix_GetError());
 
-		// Text
-		if (state > 0)
-		{
-			DrawText("%s", 16, 8, 0x00FFFFFF, "PLAYER");
-			DrawText("%d", 16, 24, 0xFFFFFFFF, 0);
-			DrawText("HI-Score", 88, 8, 0xFFFF00FF);
-			DrawText("%d", 88, 24, 0xFFFF00FF, ctx->hiscore);
+	window = SDL_CreateWindow("C Invaders", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_W, WINDOW_H, window_flags);
+	ASSERT(window != NULL, SDL_GetError());
+	SDL_SetWindowMinimumSize(ctx->sdl.window, WINDOW_W, WINDOW_H);
 
-			DrawText("START",     104, 200, (sel == 0) ? 0xFFFF00FF : 0xFFFFFFFF);
-			DrawText("CONFIGURE", 104, 216, (sel == 1) ? 0xFFFF00FF : 0xFFFFFFFF);
-			DrawText("EXIT",      104, 232, (sel == 2) ? 0xFFFF00FF : 0xFFFFFFFF);
+	renderer = SDL_CreateRenderer(window, -1, render_flags);
+	ASSERT(renderer != NULL, SDL_GetError());
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-			DrawText("PROGRAMMING", 16, 256, 0xFF0000FF);
-			DrawText("* HIGHWIND *", 16, 272, 0x00FFFFFF);
-			DrawText("SOUND", 16, 288, 0xFF0000FF);
-			//DrawText("* SHIRU * (NESSFX)", 16, 304, 0x00FFFFFF);
+	target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_W, WINDOW_H);
+	ASSERT(target != NULL, SDL_GetError());
 
-			if(IsKeyPressed(SDLK_RETURN) && sel == 2) { ctx->is_running = 0; }
-			if(IsKeyPressed(SDLK_UP))   { sel -= 1; }
-			if(IsKeyPressed(SDLK_DOWN)) { sel += 1; }
-			if (sel < 0) { sel = 2; }
-			if (sel > 2) { sel = 0; }
-		}
+	InitAssets(renderer);
 
-		// Tilemap C
-		for (int i = 0; i < 64; i++)
-		{
-			int x = ((i % 8) * SPRITE_SIZE) + 88;
-			int y = ((i / 8) * SPRITE_SIZE) + 64;
-			DrawSprite(tilemap_c[i], x, y);
-		}
-		// Tilemap Invaders
-		for (int i = 0; i < 120; i++)
-		{
-			int x = ((i % 24) * SPRITE_SIZE) + 24;
-			int y = ((i / 24) * SPRITE_SIZE) + 144;
-			DrawSprite(tilemap_invaders[i], x, y);
-		}
+	///// Game Context
+	ctx->is_running = true;
+	ctx->screen     = SCREEN_TITLE;
 
-		// Color Tilemap
-		SDL_SetRenderDrawBlendMode(GetRenderer(), SDL_BLENDMODE_MUL);
-		SDL_SetRenderDrawColor(GetRenderer(), 0, 0xFF, 0, 0xFF);
-		SDL_RenderFillRect(GetRenderer(), &(SDL_Rect){88, 64, 64, 32});
-		SDL_SetRenderDrawColor(GetRenderer(), 0, 0xFF, 0xFF, 0xFF);
-		SDL_RenderFillRect(GetRenderer(), &(SDL_Rect){88, 96, 64, 32});
-		SDL_SetRenderDrawColor(GetRenderer(), 0xFF, 0, 0xFF, 0xFF);
-		SDL_RenderFillRect(GetRenderer(), &(SDL_Rect){24, 144, 192, 20});
-		SDL_SetRenderDrawColor(GetRenderer(), 0xFF, 0xFF, 0, 0xFF);
-		SDL_RenderFillRect(GetRenderer(), &(SDL_Rect){24, 164, 192, 20});
-		SDL_SetRenderDrawBlendMode(GetRenderer(), SDL_BLENDMODE_BLEND);
+	ctx->sdl.window   = window;
+	ctx->sdl.renderer = renderer;
+	ctx->sdl.target   = target;
 
-		// Draw Curtain
-		for (int y = 0, t = tile; state == 0 && y < rows; y++)
-		{
-			for (int x = t; x < cols; x++)
-			{
-				DrawSprite(0x70, x * SPRITE_SIZE, y * SPRITE_SIZE);
-				//printf("Tiles: %d\n", tile)
-			}
-			if (t > 0) { t--; }
-		}
+	ctx->settings.fullscreen = false;
+	ctx->settings.vsync      = false;
+	ctx->settings.show_fps   = true;
+	ctx->settings.scale      = 2;
+	ctx->settings.volume     = 20; // Range from 0 to 100
+	ctx->settings.score      = 0;
+	ctx->settings.hi_score   = 37500; // Old Konami's default hi-score
 
-		// Present
-		SDL_RenderPresent(GetRenderer());
-	}
+	// Load settings and overwrite default settings
+	LoadFile(&ctx->settings);
+
+	// Apply Settings
+	SetTargetScale(ctx, ctx->settings.scale);
+	SDL_SetWindowFullscreen(ctx->sdl.window, ctx->settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+	SDL_RenderSetVSync(ctx->sdl.renderer, ctx->settings.vsync);
+	Mix_MasterVolume(ctx->settings.volume);
+}
+
+void Close(GameContext *ctx)
+{
+	FreeAssets();
+
+	Mix_CloseAudio();
+
+	SDL_DestroyTexture(ctx->sdl.target);
+	SDL_DestroyRenderer(ctx->sdl.renderer);
+	SDL_DestroyWindow(ctx->sdl.window);
+	SDL_Quit();
 }
 

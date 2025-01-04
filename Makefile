@@ -4,9 +4,9 @@
 # ###################### #
 
 CC      := cc
-OPT     := -Wall
+OPT     := -Wall -std=c99
 I_FLAGS := `sdl2-config --cflags`
-L_FLAGS := -lSDL2 -lSDL2_ttf
+L_FLAGS := -lSDL2 -lSDL2_ttf -lSDL2_mixer
 PROJECT := c_invaders
 
 # Rules
@@ -16,19 +16,8 @@ all: $(PROJECT)
 debug: OPT += -g
 debug: $(PROJECT)
 
-$(PROJECT): main.o rendering.o assets.o events.o input.o
-	$(CC) $(OPT) $^ -o $@ $(L_FLAGS)
-
-main.o: main.c c_invaders.h input.h
-	$(CC) $(OPT) $(I_FLAGS) -c $<
-rendering.o: rendering.c rendering.h
-	$(CC) $(OPT) $(I_FLAGS) -c $<
-assets.o: assets.c assets.h
-	$(CC) $(OPT) $(I_FLAGS) -c $<
-events.o: events.c events.h c_invaders.h
-	$(CC) $(OPT) $(I_FLAGS) -c $<
-input.o: input.c input.h
-	$(CC) $(OPT) $(I_FLAGS) -c $<
+$(PROJECT): main.c assets.c events.c input.c
+	$(CC) $(I_FLAGS) $(OPT) $^ -o $@ $(L_FLAGS)
 
 # Clean
 

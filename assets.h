@@ -2,20 +2,24 @@
 #define ASSETS_H_
 
 #include "SDL.h"
-#include "rendering.h"
+#include "common_types.h"
 
-/***** MACROS *****/ 
-
-#define SPRITESHEET_PATH "assets/spritesheet2.bmp"
 #define SPRITE_SIZE  (8)
 
-/***** Functions *****/
+enum {
+	SFX_CURSOR,
+	SFX_SELECT,
+	SFX_DONE,
+	SFX_COUNT
+};
 
-int InitAssets();
-void CloseAssets();
+void InitAssets(SDL_Renderer *renderer);
+void FreeAssets();
 
-void DrawSprite(int index, int x, int y);
-void DrawSpriteColor(int index, int x, int y, Uint32 color);
-int DrawText(const char *str, int x, int y, Uint32 color, ...);
+void DrawSprite(SDL_Renderer *renderer, int index, int x, int y);
+void DrawSpriteColor(SDL_Renderer *renderer, int index, int x, int y, u32 color);
+int DrawText(SDL_Renderer *renderer, const char *str, int x, int y, u32 color, ...);
+
+void PlaySound(int index);
 
 #endif // ASSETS_H_
