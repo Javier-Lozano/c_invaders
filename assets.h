@@ -6,6 +6,10 @@
 
 #define SPRITE_SIZE  (8)
 
+// Sprite Indexes
+
+// SFX Indexes
+
 enum {
 	SFX_CURSOR,
 	SFX_SELECT,

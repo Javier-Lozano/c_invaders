@@ -16,5 +16,10 @@ typedef   signed long long i64;
 typedef float  f32;
 typedef double f64;
 
+typedef struct game_context_st GameContext;
+
+typedef void (*FuncScene)(GameContext *);
+
+
 #endif // COMMON_TYPES_H_
 

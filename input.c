@@ -1,127 +1,75 @@
 #include "input.h"
 
-struct input_st {
-	u8 key_state[SDL_NUM_SCANCODES];
-	u8 msb_state[BUTTON_COUNT];
-	SDL_Point mouse_position;
-	SDL_Point mouse_delta;
-} static g_Input;
-
-static int CheckScancode(SDL_Scancode scancode, PressState state);
-static int CheckMouseButton(MouseButton button, PressState state);
+static i8   g_KeyState[SDL_NUM_SCANCODES];
+static u32  g_KeyBindings[BUTTON_COUNT];
+static bool g_AnyPressed;
 
 void ProcessInput()
 {
-	// Store Mouse and Keyboard previous "Press Down" State and
-	// compare it with the current State. This allows for checking
-	// if a key or button was just pressed or released
-
-	int mouse_x, mouse_y;
-	const u8  sdl_msb_state = SDL_GetMouseState(&mouse_x, &mouse_y);
 	const u8 *sdl_key_state = SDL_GetKeyboardState(NULL);
 
-	// Keyboard
+	bool any_key = false;
+
 	for(int i = 0; i < SDL_NUM_SCANCODES; i++)
 	{
-		u8 state = 0;
-		if (sdl_key_state[i])
+		i8 state = 0;
+		if (sdl_key_state[i] > 0)
 		{
 			state = STATE_DOWN;
-			if (!CheckScancode(i, STATE_DOWN))
+			if ((g_KeyState[i] & STATE_DOWN) == 0)
+			{
 				state |= STATE_PRESSED;
+				any_key = true;
+			}
 		}
-		else if (CheckScancode(i, STATE_DOWN))
+		else if ((g_KeyState[i] & STATE_DOWN) == STATE_DOWN)
 		{
 			state = STATE_RELEASED;
 		}
 
-		g_Input.key_state[i] = state;
+		g_KeyState[i] = state;
 	}
 
-	// Mouse Buttons
-	for(int i = 0; i < BUTTON_COUNT; i++)
+	g_AnyPressed = any_key;
+}
+
+void ClearInput()
+{
+	g_AnyPressed = false;
+	for(int i = 0; i < SDL_NUM_SCANCODES; i++)
 	{
-		u8 state = 0;
-		if (sdl_msb_state & (1 << i))
-		{
-			state = STATE_DOWN;
-			if (!CheckMouseButton(i, STATE_DOWN))
-				state |= STATE_PRESSED;
-		}
-		else if (!CheckMouseButton(i, STATE_DOWN))
-		{
-				state = STATE_RELEASED;
-		}
-
-		g_Input.msb_state[i] = state;
+		g_KeyState[i] &= STATE_DOWN;
 	}
-
-	// Mouse Position and Delta
-	g_Input.mouse_delta.x = g_Input.mouse_position.x - mouse_x;
-	g_Input.mouse_delta.y = g_Input.mouse_position.y - mouse_y;
-	g_Input.mouse_position.x = mouse_x;
-	g_Input.mouse_position.y = mouse_y;
 }
 
-// Keyboard
-
-static int CheckScancode(SDL_Scancode scancode, PressState state)
+void BindKeyToButton(SDL_Keycode key, Button button)
 {
-	return (g_Input.key_state[scancode] & state) == state;
+	SDL_Scancode sc = SDL_GetScancodeFromKey(key);
+	g_KeyBindings[button] = sc;
 }
 
-int IsKeyDown(SDL_Keycode key)
+bool CheckState(SDL_Scancode scancode, PressState state)
 {
-	return CheckScancode(SDL_GetScancodeFromKey(key), STATE_DOWN);
+	return (g_KeyState[scancode] & state) == state;
 }
 
-int IsKeyPressed(SDL_Keycode key)
+bool IsAnyPressed()
 {
-	return CheckScancode(SDL_GetScancodeFromKey(key), STATE_PRESSED);
+	return g_AnyPressed;
 }
 
-int IsKeyReleased(SDL_Keycode key)
+bool IsKeyDown(SDL_Keycode key)
 {
-	return CheckScancode(SDL_GetScancodeFromKey(key), STATE_RELEASED);
+	return CheckState(SDL_GetScancodeFromKey(key), STATE_DOWN);
 }
 
-// Mouse
-
-static int CheckMouseButton(MouseButton button, PressState state)
+bool IsKeyPressed(SDL_Keycode key)
 {
-	return (g_Input.msb_state[button] & state) == state;
+	return CheckState(SDL_GetScancodeFromKey(key), STATE_PRESSED);
 }
 
-int IsMSBDown(MouseButton button)
+bool IsKeyReleased(SDL_Keycode key)
 {
-	return CheckMouseButton(button, STATE_DOWN);
-}
-
-int IsMSBPressed(MouseButton button)
-{
-	return CheckMouseButton(button, STATE_PRESSED);
-}
-
-int IsMSBReleased(MouseButton button)
-{
-	return CheckMouseButton(button, STATE_RELEASED);
-}
-
-void GetMousePosition(int *x, int *y)
-{
-	if (x != NULL)
-		*x = g_Input.mouse_position.x;
-
-	if (y != NULL)
-		*y = g_Input.mouse_position.y;
-}
-
-void GetMouseDelta(int *x, int *y)
-{
-	if (x != NULL)
-		*x = g_Input.mouse_delta.x;
-
-	if (y != NULL)
-		*y = g_Input.mouse_delta.y;
+	return CheckState(SDL_GetScancodeFromKey(key), STATE_RELEASED);
 }
 

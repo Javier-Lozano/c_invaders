@@ -16,24 +16,24 @@ void InitAssets(SDL_Renderer *renderer)
 	Mix_Chunk   *sound[SFX_COUNT];
 
 	surface = SDL_LoadBMP(SPRITESHEET_PATH);
-	ASSERT(surface, "Couldn't load spritesheet.");
+	ASSERT_MSG(surface, "Couldn't load spritesheet.");
 
 	SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 0, 0, 0));
 
 	texture = SDL_CreateTextureFromSurface(renderer, surface);
-	ASSERT(texture, "Couldn't create texture.");
+	ASSERT_MSG(texture, "Couldn't create texture.");
 
 	sound[0] = Mix_LoadWAV("assets/14_item2.wav");
 	sound[1] = Mix_LoadWAV("assets/09_select1.wav");
 	sound[2] = Mix_LoadWAV("assets/80_chaindone.wav");
 	for(int i = 0; i < SFX_COUNT; i++)
 	{
-		ASSERT(sound[i], "Couldn't load sound.");
+		ASSERT_MSG(sound[i], "Couldn't load sound.");
 	}
 
 	g_SpriteSheetTexture = texture;
 	g_SpriteSheetSurface = surface;
-	SDL_memcpy(g_SFX, sound, sizeof(Mix_Chunk) * SFX_COUNT);
+	SDL_memcpy(g_SFX, sound, sizeof(Mix_Chunk*) * SFX_COUNT);
 }
 
 void FreeAssets()
@@ -168,5 +168,7 @@ void PlaySound(int index)
 		return;
 
 	Mix_PlayChannel(-1, g_SFX[index], 0);
+
+	//printf("Sound %d\n", index);
 }
 

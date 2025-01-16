@@ -16,7 +16,7 @@ all: $(PROJECT)
 debug: OPT += -g
 debug: $(PROJECT)
 
-$(PROJECT): main.c assets.c events.c input.c
+$(PROJECT): main.c assets.c input.c events.c screen_title.c screen_play.c player.c bullet.c
 	$(CC) $(I_FLAGS) $(OPT) $^ -o $@ $(L_FLAGS)
 
 # Clean
