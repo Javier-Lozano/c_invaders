@@ -3,26 +3,35 @@
 #  Author: Javier Lozano #
 # ###################### #
 
-CC      := cc
-OPT     := -Wall -std=c99
-I_FLAGS := `sdl2-config --cflags`
-L_FLAGS := -lSDL2 -lSDL2_ttf -lSDL2_mixer
-PROJECT := c_invaders
+CC  := cc
+OPT := -Wall -Wextra -std=c99 -pedantic
+LIB := -lSDL2 -lSDL2_ttf -lSDL2_mixer
+PRG := c_invaders
 
-# Rules
+SRC := $(wildcard src/*.c)
+OBJ := $(SRC:.c=.o)
 
-all: $(PROJECT)
+##### Rules
 
-debug: OPT += -g
-debug: $(PROJECT)
+all: debug
 
-$(PROJECT): main.c assets.c input.c events.c screen_title.c screen_play.c player.c bullet.c
-	$(CC) $(I_FLAGS) $(OPT) $^ -o $@ $(L_FLAGS)
+release: OPT += O3
+release: $(PRG)
+	@rm -rv *.o
+
+debug: OPT += -g -O0 -DDEBUG
+debug: $(PRG)
+
+$(PRG): $(OBJ)
+	$(CC) $^ -o $@ $(LIB)
+
+%.o: %.c
+	$(CC) $(OPT) `sdl2-config --cflags` -c $< -o $@
+	
 
 # Clean
-
-.PHONY: clean
 clean:
-	@rm -fv *.o
-	@rm -fv $(PROJECT)
+	@rm -fv $(OBJ)
+	@rm -fv $(PRG)
 
+.PHONY: all debug release clean
