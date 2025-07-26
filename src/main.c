@@ -57,15 +57,6 @@ int main(int argc, char *argv[])
 	// Main Loop
 	prev_time = SDL_GetPerformanceCounter();
 
-
-	Animation anims[SEQ_COUNT];
-	InitAnimation(&anims[0], SEQ_PLAYER_DEAD, 1);
-	InitAnimation(&anims[1], SEQ_HIT,         1);
-	InitAnimation(&anims[2], SEQ_BULLET_HIT,  1);
-	InitAnimation(&anims[3], SEQ_BULLET_A,    1);
-	InitAnimation(&anims[4], SEQ_BULLET_B,    1);
-	InitAnimation(&anims[5], SEQ_BULLET_C,    1);
-
 	while(game.is_running)
 	{
 		// Elapsed Time
@@ -97,17 +88,6 @@ int main(int argc, char *argv[])
 			//	ClearInputState();
 		}
 
-		DrawText(game.renderer, "^7UTF-8: ^1%s^2 -> Error", 8, 0, "ÉÍÓÚÑáéíóúñ");
-
-		SetGraphicsColor(0, 255, 0, 255);
-		PlayAnimation(game.renderer, &anims[0], game.elapsed_time, 8, 16);
-		SetGraphicsColor(255, 255, 0, 255);
-		PlayAnimation(game.renderer, &anims[1], game.elapsed_time, 8, 24);
-		PlayAnimation(game.renderer, &anims[2], game.elapsed_time, 8, 32);
-		PlayAnimation(game.renderer, &anims[3], game.elapsed_time, 8, 40);
-		PlayAnimation(game.renderer, &anims[4], game.elapsed_time, 8, 48);
-		PlayAnimation(game.renderer, &anims[5], game.elapsed_time, 8, 56);
-
 		//game.scene.draw(&game, dt);
 
 		//UpdateTransitionState(game.renderer, game.elapsed_time);
@@ -117,6 +97,8 @@ int main(int argc, char *argv[])
 		SDL_RenderCopy(game.renderer, game.buffer, NULL, NULL);
 		SDL_RenderPresent(game.renderer);
 	}
+
+	CloseGraphics();
 
 	// Close SDL_mixer
 	Mix_CloseAudio();
