@@ -290,7 +290,7 @@ void DrawTile(SDL_Renderer *renderer, int tile, int x, int y)
 	SDL_RenderCopy(renderer, g_GraphicsTexture, &src, &dst);
 }
 
-void DrawTileColor(SDL_Renderer *renderer, int tile, int x, int y, unsigned int rgba)
+void DrawTileRGBA(SDL_Renderer *renderer, int tile, int x, int y, unsigned int rgba)
 {
 	SetGraphicsColor(
 			(rgba & 0xFF000000) >> 24,

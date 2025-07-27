@@ -47,7 +47,7 @@ void CloseGraphics();
 void SetGraphicsColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
 void DrawTile(SDL_Renderer *renderer, int tile, int x, int y);
-void DrawTileColor(SDL_Renderer *renderer, int tile, int x, int y, unsigned int rgba);
+void DrawTileRGBA(SDL_Renderer *renderer, int tile, int x, int y, unsigned int rgba);
 
 void DrawSprite(SDL_Renderer *renderer, SpriteID sprite, int x, int y);
 void DrawSpriteRGBA(SDL_Renderer *renderer, SpriteID sprite, int x, int y, unsigned int rgba);

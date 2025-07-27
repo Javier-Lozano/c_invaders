@@ -1,6 +1,4 @@
 #include "common.h"
-#include "input.h"
-#include "graphics.h"
 
 int main(int argc, char *argv[])
 {
@@ -10,7 +8,7 @@ int main(int argc, char *argv[])
 	Uint32 window_flags = SDL_WINDOW_SHOWN;
 	Uint32 render_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE;
 
-	const double fixed_dt = 1.0f / 2;
+	const double fixed_dt = 1.0f / FPS;
 	Uint64 curr_time = 0, prev_time = 0;
 
 	SDL_Event event;
@@ -50,7 +48,7 @@ int main(int argc, char *argv[])
 
 	// Game Struct
 	//game.scene      = SetScenePlay();
-	//game.scene      = SetSceneTitle();
+	game.scene      = SetSceneTitle();
 	game.highscore  = 57300;
 	game.is_running = true;
 
@@ -80,17 +78,23 @@ int main(int argc, char *argv[])
 		SDL_SetRenderTarget(game.renderer, game.buffer);
 		SDL_RenderClear(game.renderer);
 
-		//game.scene.update(&game);
+		if (game.scene.is_starting)
+		{
+			game.scene.init(&game);
+			game.scene.is_starting = false;
+		}
+
+		game.scene.update(&game);
 
 		for(; game.accumulator > fixed_dt; game.accumulator -= fixed_dt)
 		{
-			//	game.scene.fixed_update(&game, fixed_dt);
-			//	ClearInputState();
+			game.scene.fixed_update(&game);
+			ClearInputState();
 		}
 
-		//game.scene.draw(&game, dt);
+		game.scene.draw(&game);
 
-		//UpdateTransitionState(game.renderer, game.elapsed_time);
+		UpdateTransition(&game);
 
 		// Present to Screen
 		SDL_SetRenderTarget(game.renderer, NULL);
