@@ -4,7 +4,19 @@
 #include <stdbool.h>
 #include "SDL.h"
 
+struct GameContext;
+
+typedef struct Scene {
+	void (*init)(struct GameContext *game);
+	void (*update)(struct GameContext *game);
+	void (*fixed_update)(struct GameContext *game);
+	void (*draw)(struct GameContext *game);
+	bool is_starting;
+} Scene;
+
 typedef struct Settings {
+	int  highscore[10];
+	char names[10][16];
 	char scale;
 	char angle;
 	bool vsync;
@@ -17,6 +29,7 @@ typedef struct GameContext {
 	SDL_Texture  *fbuffer;
 
 	Settings settings;
+	Scene    scene;
 
 	double accumulator;
 	double elapsed_time;
@@ -24,12 +37,11 @@ typedef struct GameContext {
 	bool is_running;
 } GameContext;
 
-void Events(GameContext *game);
-void ClearScreen(GameContext *game);
-void DrawScreen(GameContext *game);
-
+void GameUpdate(GameContext *game);
 void LoadSaveFile(GameContext *game);
 void WriteSaveFile(GameContext *game);
+
+Scene SetSceneTitle();
 
 #endif // GAME_H_
 

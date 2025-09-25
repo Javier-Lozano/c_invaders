@@ -5,16 +5,18 @@
 #include <string.h>
 #include "SDL.h"
 #include "game.h"
+#include "input.h"
+#include "graphics.h"
 
-#define WINDOW_W (240)
-#define WINDOW_H (320)
-#define FIXED_DT (1.0f/60.0f)
+#define WINDOW_W  (240)
+#define WINDOW_H  (320)
+#define INNER_FPS (60)
 
-#define ASSERT(assert, msg) \
+#define ASSERT(assert, str) \
 	do { \
 		if (!(bool)(assert)) { \
 			printf("\033[1;91m ASSERT:\033[0m '"#assert"' failed. '%s' at line %d\033.\n", __FILE__, __LINE__); \
-			printf("\033[1;93mMESSAGE:\033[0m '%s'\n", msg); \
+			printf("\033[1;93mMESSAGE:\033[0m '%s'\n", str); \
 			exit(EXIT_FAILURE); \
 		} \
 	} while(0)

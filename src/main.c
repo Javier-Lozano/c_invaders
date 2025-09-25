@@ -7,38 +7,20 @@ int main(int argc, char *argv[])
 {
 	GameContext game = {0};
 
-	// Init
-
 	init(&game, argc, argv);
 
 	Uint64 prev_time = SDL_GetPerformanceCounter();
 	Uint64 curr_time;
 
-	// Main Loop
-
 	while(game.is_running)
 	{
-		// Elapsed Time
-		//curr_time = SDL_GetPerformanceCounter();
-		//game.elapsed_time = (double)(curr_time - prev_time) / (double)SDL_GetPerformanceFrequency();
-		//prev_time = curr_time;
-		//game.accumulator += game.elapsed_time;
+		curr_time = SDL_GetPerformanceCounter();
+		game.elapsed_time = (double)(curr_time - prev_time) / (double)SDL_GetPerformanceFrequency();
+		prev_time = curr_time;
+		game.accumulator += game.elapsed_time;
 
-		// Events
-		Events(&game);
-
-		// Clear Screen
-		ClearScreen(&game);
-
-		// Update
-		SDL_SetRenderDrawColor(game.renderer, 255, 255, 255, 255);
-		SDL_RenderDrawLine(game.renderer, 0, 0, 10, 10);
-
-		// Draw Screen
-		DrawScreen(&game);
+		GameUpdate(&game);
 	}
-
-	// Close
 
 	close(&game);
 	WriteSaveFile(&game);
@@ -88,7 +70,7 @@ void init(GameContext *game, int argc, char *argv[])
 	if (game->settings.fullscreen)
 		flags_window |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-	// Init
+	// Init SDL
 
 	int w = (game->settings.angle % 2) == 0 ? WINDOW_W : WINDOW_H;
 	int h = (game->settings.angle % 2) == 0 ? WINDOW_H : WINDOW_W;
@@ -114,11 +96,18 @@ void init(GameContext *game, int argc, char *argv[])
 			w * game->settings.scale,
 			h * game->settings.scale);
 
+	//
+
+	InitGraphics(game->renderer);
+
+	game->scene      = SetSceneTitle();
 	game->is_running = true;
 }
 
 void close(GameContext *game)
 {
+
+	CloseGraphics();
 	SDL_DestroyTexture(game->fbuffer);
 	SDL_DestroyRenderer(game->renderer);
 	SDL_DestroyWindow(game->window);
