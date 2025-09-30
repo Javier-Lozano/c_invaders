@@ -14,6 +14,13 @@ typedef struct Scene {
 	bool is_starting;
 } Scene;
 
+typedef enum {
+	TRANS_NONE,
+	TRANS_INIT,
+	TRANS_WAIT,
+	TRANS_END,
+} TransState;
+
 typedef struct Settings {
 	int  highscore[10];
 	char names[10][16];
@@ -28,8 +35,8 @@ typedef struct GameContext {
 	SDL_Renderer *renderer;
 	SDL_Texture  *fbuffer;
 
-	Settings settings;
 	Scene    scene;
+	Settings settings;
 
 	double accumulator;
 	double elapsed_time;
@@ -40,6 +47,9 @@ typedef struct GameContext {
 void GameUpdate(GameContext *game);
 void LoadSaveFile(GameContext *game);
 void WriteSaveFile(GameContext *game);
+
+void StartTransition(int stage);
+TransState GetTransitionState();
 
 Scene SetSceneTitle();
 

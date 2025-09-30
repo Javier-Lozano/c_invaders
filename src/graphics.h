@@ -52,11 +52,14 @@ void DrawTileRGBA(SDL_Renderer *renderer, int tile, int x, int y, unsigned int r
 void DrawSprite(SDL_Renderer *renderer, SpriteID sprite, int x, int y);
 void DrawSpriteRGBA(SDL_Renderer *renderer, SpriteID sprite, int x, int y, unsigned int rgba);
 
-void InitAnimation(Animation *anim, SequenceID seq_id, float seconds);
-void PlayAnimation(SDL_Renderer *renderer, Animation *anim, float dt, int x, int y);
+int DrawChar(SDL_Renderer *renderer, unsigned int c, int x, int y);
+int DrawCharRGBA(SDL_Renderer *renderer, unsigned int c, int x, int y, unsigned int rgba);
 
 int DrawText(SDL_Renderer *renderer, const char *str, int x, int y, ...);
 int DrawTextRGBA(SDL_Renderer *renderer, const char *str, int x, int y, unsigned int rgba, ...);
+
+void InitAnimation(Animation *anim, SequenceID seq_id, float seconds);
+void PlayAnimation(SDL_Renderer *renderer, Animation *anim, float dt, int x, int y);
 
 void DrawGraphicsTexture(SDL_Renderer *renderer);
 

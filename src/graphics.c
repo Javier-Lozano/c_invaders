@@ -164,8 +164,7 @@ void DrawTileRGBA(SDL_Renderer *renderer, int tile, int x, int y, unsigned int r
 			(rgba & 0xFF000000) >> 24,
 			(rgba & 0x00FF0000) >> 16,
 			(rgba & 0x0000FF00) >> 8,
-			(rgba & 0x000000FF)
-			);
+			(rgba & 0x000000FF));
 	DrawTile(renderer, tile, x, y);
 }
 
@@ -184,38 +183,40 @@ void DrawSpriteRGBA(SDL_Renderer *renderer, SpriteID sprite, int x, int y, unsig
 			(rgba & 0xFF000000) >> 24,
 			(rgba & 0x00FF0000) >> 16,
 			(rgba & 0x0000FF00) >> 8,
-			(rgba & 0x000000FF)
-			);
+			(rgba & 0x000000FF));
 	DrawSprite(renderer, sprite, x, y);
 }
 
-void InitAnimation(Animation *anim, SequenceID seq_id, float seconds)
+int DrawChar(SDL_Renderer *renderer, unsigned int c, int x, int y)
 {
-	anim->seq_id   = seq_id;
-	anim->pivot    = 0;
-	anim->duration = seconds;
-	anim->timer    = 0.0f;
+	if (c < 0x80)
+	{
+		DrawTile(renderer, c, x, y);
+		return 1;
+	}
+	else
+	{
+		for(int i = 0; i < 12; i++)
+		{
+			if (c == g_UTF8Map[i])
+			{
+				DrawTile(renderer, 128+i, x, y);
+				return 1;
+			}
+		}
+	}
+	return 0;
 }
 
-void PlayAnimation(SDL_Renderer *renderer, Animation *anim, float dt, int x, int y)
+int DrawCharRGBA(SDL_Renderer *renderer, unsigned int c, int x, int y, unsigned int rgba)
 {
-	if (anim->seq_id < 0 || anim->seq_id > SEQ_COUNT-1)
-		return;
+	SetGraphicsColor(
+			(rgba & 0xFF000000) >> 24,
+			(rgba & 0x00FF0000) >> 16,
+			(rgba & 0x0000FF00) >> 8,
+			(rgba & 0x000000FF));
 
-	const Sequence *seq = &g_Sequences[anim->seq_id];
-	const float step = anim->duration / seq->length;
-
-	anim->timer += dt;
-	if (anim->timer >= step)
-	{
-		anim->timer -= step;
-		anim->pivot++;
-
-		if (anim->pivot == seq->length)
-			anim->pivot = 0;
-	}
-
-	DrawSprite(renderer, seq->frames[anim->pivot], x, y);
+	return DrawChar(renderer, c, x, y);
 }
 
 static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, int *x, int *y, va_list args)
@@ -341,14 +342,42 @@ int DrawTextRGBA(SDL_Renderer *renderer, const char *str, int x, int y, unsigned
 			(rgba & 0xFF000000) >> 24,
 			(rgba & 0x00FF0000) >> 16,
 			(rgba & 0x0000FF00) >> 8,
-			(rgba & 0x000000FF)
-			);
+			(rgba & 0x000000FF));
 
 	va_start(args, rgba);
 	count = draw_text(renderer, str, true, &x, &y, args);
 	va_end(args);
 
 	return count;
+}
+
+void InitAnimation(Animation *anim, SequenceID seq_id, float seconds)
+{
+	anim->seq_id   = seq_id;
+	anim->pivot    = 0;
+	anim->duration = seconds;
+	anim->timer    = 0.0f;
+}
+
+void PlayAnimation(SDL_Renderer *renderer, Animation *anim, float dt, int x, int y)
+{
+	if (anim->seq_id < 0 || anim->seq_id > SEQ_COUNT-1)
+		return;
+
+	const Sequence *seq = &g_Sequences[anim->seq_id];
+	const float step = anim->duration / seq->length;
+
+	anim->timer += dt;
+	if (anim->timer >= step)
+	{
+		anim->timer -= step;
+		anim->pivot++;
+
+		if (anim->pivot == seq->length)
+			anim->pivot = 0;
+	}
+
+	DrawSprite(renderer, seq->frames[anim->pivot], x, y);
 }
 
 void DrawGraphicsTexture(SDL_Renderer *renderer)

@@ -8,6 +8,14 @@ static void init(GameContext *game)
 static void update(GameContext *game)
 {
 	(void)game;
+	if (IsKeyPressed(SDLK_SPACE))
+	{
+		StartTransition(0);
+	}
+	if (IsKeyPressed(SDLK_RETURN))
+	{
+		StartTransition(17);
+	}
 }
 
 static void fixed_update(GameContext *game)
