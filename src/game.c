@@ -1,49 +1,29 @@
-#include "common.h"
-
-static struct Transition {
-	TransState state;
-	float offset;
-	int   stage;
-} g_Transition;
+#include "SDL.h"
+#include "game.h"
+#include "scene.h"
+#include "input.h"
+#include "graphics.h"
+#include "transition.h"
+#include "macros.h"
 
 static void events(GameContext *game);
 static void draw_screen(GameContext *game);
 static void mod_screen(GameContext *game, char s_value, char a_value);
 
-static void update_transition();
-
-void GameUpdate(GameContext *game)
+void GameLoop(GameContext *game)
 {
-	const double fixed_dt = 1.0f / INNER_FPS;
-
-	SDL_SetRenderDrawColor(game->renderer, 0x10, 0x10, 0x10, 0xFF);
+	SDL_SetRenderDrawColor(game->renderer, 16, 16, 16, 255);
 	SDL_RenderClear(game->renderer);
 
 	SDL_SetRenderTarget(game->renderer, game->fbuffer);
-	SDL_SetRenderDrawColor(game->renderer, 0xFF, 0, 0, 0xFF);
+	SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
 	SDL_RenderClear(game->renderer);
 
 	SetGraphicsColor(255, 255, 255, 255);
 
 	events(game);
 
-	InputStateUpdate();
-
-	if (game->scene.is_starting)
-	{
-		game->scene.init(game);
-		game->scene.is_starting = false;
-	}
-
-	game->scene.update(game);
-
-	for(; game->accumulator > fixed_dt; game->accumulator -= fixed_dt)
-	{
-		game->scene.fixed_update(game);
-		InputStateClear();
-	}
-
-	game->scene.draw(game);
+	UpdateScene(game);
 
 	draw_screen(game);
 }
@@ -68,7 +48,7 @@ static const Settings g_DefaultSettings = {
 	.fullscreen = false
 };
 
-void LoadSaveFile(GameContext *game)
+void LoadSAVEDAT(GameContext *game)
 {
 	bool error_read = 0;
 	bool error_eof  = 0; 
@@ -98,11 +78,11 @@ void LoadSaveFile(GameContext *game)
 DEFAULT_FILE:
 	printf("Creating 'SAVE.DAT'\n");
 	game->settings = g_DefaultSettings;
-	WriteSaveFile(game);
+	WriteSAVEDAT(game);
 	return;
 }
 
-void WriteSaveFile(GameContext *game)
+void WriteSAVEDAT(GameContext *game)
 {
 	FILE *file = fopen("SAVE.DAT", "wb");
 	if (file == NULL)
@@ -123,19 +103,6 @@ void WriteSaveFile(GameContext *game)
 #endif
 
 	return;
-}
-
-void StartTransition(int stage)
-{
-	g_Transition.state  = TRANS_INIT;
-	g_Transition.offset = 0.0f;
-	g_Transition.stage  = stage;
-
-}
-
-TransState GetTransitionState()
-{
-	return g_Transition.state;
 }
 
 //
@@ -182,6 +149,8 @@ void events(GameContext *game)
 				break;
 		}
 	}
+
+	InputStateUpdate();
 }
 
 void draw_screen(GameContext *game)
@@ -209,73 +178,7 @@ void draw_screen(GameContext *game)
 	}
 
 	// Transition
-	const float dt_speed  = game->elapsed_time * INNER_FPS * 4;
-	const bool  has_stage = g_Transition.stage > 0;
-	const float mid_point = WINDOW_H / 2;
-
-	switch (g_Transition.state)
-	{
-		case TRANS_NONE:
-			break;
-		case TRANS_INIT:
-			{
-				g_Transition.offset += dt_speed;
-
-				SDL_FRect rects[2] = {
-					{0,        0, WINDOW_W,  g_Transition.offset},
-					{0, WINDOW_H, WINDOW_W, -g_Transition.offset}
-				};
-
-				SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
-				SDL_RenderFillRectsF(game->renderer, rects, 2);
-
-				if (g_Transition.offset > mid_point)
-				{
-					g_Transition.offset = 0;
-					g_Transition.state  = TRANS_WAIT; 
-				}
-
-				if (has_stage)
-					DrawText(game->renderer, "^1STAGE^7 %d", 84, g_Transition.offset-8, g_Transition.stage);
-			}
-			break;
-		case TRANS_WAIT:
-			{
-				g_Transition.offset += game->elapsed_time;
-
-				SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
-				SDL_RenderClear(game->renderer);
-
-				if (g_Transition.offset > 2)
-				{
-					g_Transition.offset = mid_point;
-					g_Transition.state  = TRANS_END; 
-				}
-
-				if (has_stage)
-					DrawText(game->renderer, "^1STAGE^7 %d", 84, mid_point-8, g_Transition.stage);
-			}
-			break;
-		case TRANS_END:
-			{
-				g_Transition.offset -= dt_speed;
-
-				SDL_FRect rects[2] = {
-					{0,        0, WINDOW_W,  g_Transition.offset},
-					{0, WINDOW_H, WINDOW_W, -g_Transition.offset}
-				};
-
-				SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
-				SDL_RenderFillRectsF(game->renderer, rects, 2);
-
-				if (g_Transition.offset < 0)
-					g_Transition.state = TRANS_NONE; 
-
-				if (has_stage)
-					DrawText(game->renderer, "^1STAGE^7 %d", 84, g_Transition.offset-8, g_Transition.stage);
-			}
-			break;
-	}
+	UpdateTransition(game->renderer, game->elapsed_time);
 
 	// Draw Frame Buffer
 	SDL_SetRenderTarget(game->renderer, NULL);
@@ -322,6 +225,3 @@ void mod_screen(GameContext *game, char s_value, char a_value)
 	}
 }
 
-static void update_transition()
-{
-}

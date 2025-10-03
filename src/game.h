@@ -2,24 +2,11 @@
 #define GAME_H_
 
 #include <stdbool.h>
-#include "SDL.h"
+#include "scene.h"
 
-struct GameContext;
-
-typedef struct Scene {
-	void (*init)(struct GameContext *game);
-	void (*update)(struct GameContext *game);
-	void (*fixed_update)(struct GameContext *game);
-	void (*draw)(struct GameContext *game);
-	bool is_starting;
-} Scene;
-
-typedef enum {
-	TRANS_NONE,
-	TRANS_INIT,
-	TRANS_WAIT,
-	TRANS_END,
-} TransState;
+struct SDL_Renderer;
+struct SDL_Window;
+struct SDL_Texture;
 
 typedef struct Settings {
 	int  highscore[10];
@@ -31,11 +18,11 @@ typedef struct Settings {
 } Settings;
 
 typedef struct GameContext {
-	SDL_Window   *window;
-	SDL_Renderer *renderer;
-	SDL_Texture  *fbuffer;
+	struct SDL_Window   *window;
+	struct SDL_Renderer *renderer;
+	struct SDL_Texture  *fbuffer;
 
-	Scene    scene;
+	SceneID  scene_id;
 	Settings settings;
 
 	double accumulator;
@@ -44,14 +31,9 @@ typedef struct GameContext {
 	bool is_running;
 } GameContext;
 
-void GameUpdate(GameContext *game);
-void LoadSaveFile(GameContext *game);
-void WriteSaveFile(GameContext *game);
-
-void StartTransition(int stage);
-TransState GetTransitionState();
-
-Scene SetSceneTitle();
+void GameLoop(GameContext *game);
+void LoadSAVEDAT(GameContext *game);
+void WriteSAVEDAT(GameContext *game);
 
 #endif // GAME_H_
 

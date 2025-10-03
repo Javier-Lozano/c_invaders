@@ -1,4 +1,9 @@
-#include "common.h"
+#include <string.h>
+#include "SDL.h"
+#include "game.h"
+#include "scene.h"
+#include "graphics.h"
+#include "macros.h"
 
 static void init(GameContext *game, int argc, char *argv[]);
 static void close(GameContext *game);
@@ -19,11 +24,11 @@ int main(int argc, char *argv[])
 		prev_time = curr_time;
 		game.accumulator += game.elapsed_time;
 
-		GameUpdate(&game);
+		GameLoop(&game);
 	}
 
 	close(&game);
-	WriteSaveFile(&game);
+	WriteSAVEDAT(&game);
 
 	printf("\n\033[1;97mSEE YOU SPACE COWBOY...\033[0m\n\n");
 
@@ -38,7 +43,7 @@ void init(GameContext *game, int argc, char *argv[])
 
 	// Load SAVE.DAT
 
-	LoadSaveFile(game);
+	LoadSAVEDAT(game);
 
 	// Args
 
@@ -92,21 +97,22 @@ void init(GameContext *game, int argc, char *argv[])
 	game->fbuffer = SDL_CreateTexture(game->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_W, WINDOW_H);
 	ASSERT(game->fbuffer != NULL, SDL_GetError());
 
+	SDL_SetRenderDrawBlendMode(game->renderer, SDL_BLENDMODE_BLEND);
 	SDL_SetWindowMinimumSize(game->window,
 			w * game->settings.scale,
 			h * game->settings.scale);
 
-	//
+	// Other things
 
 	InitGraphics(game->renderer);
 
-	game->scene      = SetSceneTitle();
+	SetScene(SCENE_TITLE);
+
 	game->is_running = true;
 }
 
 void close(GameContext *game)
 {
-
 	CloseGraphics();
 	SDL_DestroyTexture(game->fbuffer);
 	SDL_DestroyRenderer(game->renderer);

@@ -1,7 +1,7 @@
 #ifndef GRAPHICS_H_
 #define GRAPHICS_H_
 
-#include "SDL.h"
+struct SDL_Renderer;
 
 typedef enum {
 	SPR_PLAYER,
@@ -41,27 +41,27 @@ typedef struct {
 	float timer;
 } Animation;
 
-void InitGraphics(SDL_Renderer *renderer);
+void InitGraphics(struct SDL_Renderer *renderer);
 void CloseGraphics();
 
 void SetGraphicsColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
-void DrawTile(SDL_Renderer *renderer, int tile, int x, int y);
-void DrawTileRGBA(SDL_Renderer *renderer, int tile, int x, int y, unsigned int rgba);
+void DrawTile(struct SDL_Renderer *renderer, int tile, int x, int y);
+void DrawTileRGBA(struct SDL_Renderer *renderer, int tile, int x, int y, unsigned int rgba);
 
-void DrawSprite(SDL_Renderer *renderer, SpriteID sprite, int x, int y);
-void DrawSpriteRGBA(SDL_Renderer *renderer, SpriteID sprite, int x, int y, unsigned int rgba);
+void DrawSprite(struct SDL_Renderer *renderer, SpriteID sprite, int x, int y);
+void DrawSpriteRGBA(struct SDL_Renderer *renderer, SpriteID sprite, int x, int y, unsigned int rgba);
 
-int DrawChar(SDL_Renderer *renderer, unsigned int c, int x, int y);
-int DrawCharRGBA(SDL_Renderer *renderer, unsigned int c, int x, int y, unsigned int rgba);
+int DrawChar(struct SDL_Renderer *renderer, unsigned int c, int x, int y);
+int DrawCharRGBA(struct SDL_Renderer *renderer, unsigned int c, int x, int y, unsigned int rgba);
 
-int DrawText(SDL_Renderer *renderer, const char *str, int x, int y, ...);
-int DrawTextRGBA(SDL_Renderer *renderer, const char *str, int x, int y, unsigned int rgba, ...);
+int DrawText(struct SDL_Renderer *renderer, const char *str, int x, int y, ...);
+int DrawTextRGBA(struct SDL_Renderer *renderer, const char *str, int x, int y, unsigned int rgba, ...);
 
 void InitAnimation(Animation *anim, SequenceID seq_id, float seconds);
-void PlayAnimation(SDL_Renderer *renderer, Animation *anim, float dt, int x, int y);
+void PlayAnimation(struct SDL_Renderer *renderer, Animation *anim, float dt, int x, int y);
 
-void DrawGraphicsTexture(SDL_Renderer *renderer);
+void DrawGraphicsTexture(struct SDL_Renderer *renderer);
 
 #endif // GRAPHICS_H_
 

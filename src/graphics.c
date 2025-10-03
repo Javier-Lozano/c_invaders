@@ -1,4 +1,7 @@
-#include "common.h"
+#include <stdbool.h>
+#include "SDL.h"
+#include "graphics.h"
+#include "macros.h"
 
 #define GRAPHICS_WIDTH  (128)
 #define GRAPHICS_HEIGHT (128)
@@ -256,11 +259,15 @@ static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, i
 				case 'd':
 				case 'x':
 				case 'X':
-				case 'f':
 				case 'c':
 				case 's':
 					snprintf(format, 8, "%%%c", f);
 					vsnprintf(temp, 256, format, args);
+					count += draw_text(renderer, temp, false, x, y, args);
+					i++;
+					continue;
+				case 'f':
+					vsnprintf(temp, 256, "%.2f", args);
 					count += draw_text(renderer, temp, false, x, y, args);
 					i++;
 					continue;

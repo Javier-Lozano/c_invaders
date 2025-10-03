@@ -1,12 +1,5 @@
-#ifndef COMMON_H_
-#define COMMON_H_
-
-#include <stdbool.h>
-#include <string.h>
-#include "SDL.h"
-#include "game.h"
-#include "input.h"
-#include "graphics.h"
+#ifndef MACROS_H_
+#define MACROS_H_
 
 #define WINDOW_W  (240)
 #define WINDOW_H  (320)
@@ -14,7 +7,7 @@
 
 #define ASSERT(assert, str) \
 	do { \
-		if (!(bool)(assert)) { \
+		if (!(assert)) { \
 			printf("\033[1;91m ASSERT:\033[0m '"#assert"' failed. '%s' at line %d\033.\n", __FILE__, __LINE__); \
 			printf("\033[1;93mMESSAGE:\033[0m '%s'\n", str); \
 			exit(EXIT_FAILURE); \
@@ -27,5 +20,5 @@
 #define MIN(v1, v2) (v1 < v2 ? v1 : v2)
 #define MAX(v1, v2) (v1 > v2 ? v1 : v2)
 
-#endif // COMMON_H_
+#endif // MACROS_H_
 
