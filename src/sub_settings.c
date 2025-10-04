@@ -9,7 +9,7 @@ static char g_Select = 1;
 
 void UpdateSettings(GameContext *game)
 {
-	char input = IsKeyPressed(SDLK_DOWN) - IsKeyPressed(SDLK_UP);
+	char input  = IsKeyPressed(SDLK_DOWN) - IsKeyPressed(SDLK_UP);
 	char left   = IsKeyPressed(SDLK_LEFT);
 	char right  = IsKeyPressed(SDLK_RIGHT);
 	bool accept = IsKeyPressed(SDLK_RETURN);
@@ -22,16 +22,16 @@ void UpdateSettings(GameContext *game)
 			{
 				game->settings.fullscreen = !game->settings.fullscreen;
 				SDL_SetWindowFullscreen(game->window, game->settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-				ModScreen(game, 0, 0);
+				ModScreen(game->window, &game->settings, 0, 0);
 			}
 			break;
 		case 2:
 			if (left || right)
-				ModScreen(game, right-left, 0);
+				ModScreen(game->window, &game->settings, right-left, 0);
 			break;
 		case 3:
 			if (left || right)
-				ModScreen(game, 0, right-left);
+				ModScreen(game->window, &game->settings, 0, right-left);
 			break;
 		case 4:
 			// TODO: Volume Control
