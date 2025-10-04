@@ -8,7 +8,6 @@
 
 static void events(GameContext *game);
 static void draw_screen(GameContext *game);
-static void mod_screen(GameContext *game, char s_value, char a_value);
 
 void GameLoop(GameContext *game)
 {
@@ -31,16 +30,16 @@ void GameLoop(GameContext *game)
 static const Settings g_DefaultSettings = {
 	.highscore = {57300, 37500, 30000, 25000, 20000, 19500, 19000, 15000, 10000, 5000},
 	.names = {
-		"BLOODY SABBATH  ",
-		"HOLY DIVER      ",
-		"FROZEN RAINBOW  ",
-		"VET OF PSY WARS ",
-		"SOLITUDE        ",
-		"WICKED WAYS     ",
-		"TOWER OF ABYSS  ",
-		"JUSTICE FOR ALL ",
-		"BLACK METAL     ",
-		"DE MYSTERIIS DOM",
+		"B. SABATH ",
+		"DIO       ",
+		"B.O.C.    ",
+		"K. CRIMSON",
+		"D. PURPLE ",
+		"SAXON     ",
+		"RHAPSODY  ",
+		"PAGAN ALTR",
+		"CANDLEMASS",
+		"METALLICA ",
 	},
 	.scale = 2,
 	.angle = 0,
@@ -105,6 +104,44 @@ void WriteSAVEDAT(GameContext *game)
 	return;
 }
 
+void ModScreen(GameContext *game, char s_value, char a_value)
+{
+	SDL_DisplayMode display;
+	int display_index = SDL_GetWindowDisplayIndex(game->window);
+	if (SDL_GetCurrentDisplayMode(display_index, &display) != 0)
+	{
+		printf("%s\n", SDL_GetError());
+		return;
+	}
+
+	// Rotate Screen
+	if (a_value != 0)
+		game->settings.angle = WRAP(game->settings.angle + a_value, 0, 3);
+
+	bool is_vertical = (game->settings.angle % 2) == 0;
+	int w = is_vertical ? WINDOW_W : WINDOW_H;
+	int h = is_vertical ? WINDOW_H : WINDOW_W;
+
+	// Scale Screen
+	if (s_value != 0 || a_value != 0)
+		game->settings.scale = CLAMP(game->settings.scale + s_value, 1, MIN(display.h / h, display.w / w));
+
+	if (!game->settings.fullscreen)
+	{
+		SDL_SetWindowMinimumSize(game->window,
+				w * game->settings.scale,
+				h * game->settings.scale);
+
+		SDL_SetWindowSize(game->window,
+				w * game->settings.scale,
+				h * game->settings.scale);
+
+		SDL_SetWindowPosition(game->window,
+				SDL_WINDOWPOS_CENTERED,
+				SDL_WINDOWPOS_CENTERED);
+	}
+}
+
 //
 
 void events(GameContext *game)
@@ -130,20 +167,20 @@ void events(GameContext *game)
 						{
 							game->settings.fullscreen = !game->settings.fullscreen;
 							SDL_SetWindowFullscreen(game->window, game->settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-							mod_screen(game, 0, 0);
+							ModScreen(game, 0, 0);
 						}
 						break;
 					case SDLK_PAGEUP:
 						if (shift)
-							mod_screen(game, 0, 1);
+							ModScreen(game, 0, 1);
 						else
-							mod_screen(game, 1, 0);
+							ModScreen(game, 1, 0);
 						break;
 					case SDLK_PAGEDOWN:
 						if (shift)
-							mod_screen(game, 0, -1);
+							ModScreen(game, 0, -1);
 						else
-							mod_screen(game, -1, 0);
+							ModScreen(game, -1, 0);
 						break;
 				}
 				break;
@@ -185,43 +222,5 @@ void draw_screen(GameContext *game)
 	SDL_RenderCopyEx(game->renderer, game->fbuffer, NULL, &rect, angle, NULL, 0);
 
 	SDL_RenderPresent(game->renderer);
-}
-
-void mod_screen(GameContext *game, char s_value, char a_value)
-{
-	SDL_DisplayMode display;
-	int display_index = SDL_GetWindowDisplayIndex(game->window);
-	if (SDL_GetCurrentDisplayMode(display_index, &display) != 0)
-	{
-		printf("%s\n", SDL_GetError());
-		return;
-	}
-
-	// Rotate Screen
-	if (a_value != 0)
-		game->settings.angle = WRAP(game->settings.angle + a_value, 0, 3);
-
-	bool is_vertical = (game->settings.angle % 2) == 0;
-	int w = is_vertical ? WINDOW_W : WINDOW_H;
-	int h = is_vertical ? WINDOW_H : WINDOW_W;
-
-	// Scale Screen
-	if (s_value != 0 || a_value != 0)
-		game->settings.scale = CLAMP(game->settings.scale + s_value, 1, MIN(display.h / h, display.w / w));
-
-	if (!game->settings.fullscreen)
-	{
-		SDL_SetWindowMinimumSize(game->window,
-				w * game->settings.scale,
-				h * game->settings.scale);
-
-		SDL_SetWindowSize(game->window,
-				w * game->settings.scale,
-				h * game->settings.scale);
-
-		SDL_SetWindowPosition(game->window,
-				SDL_WINDOWPOS_CENTERED,
-				SDL_WINDOWPOS_CENTERED);
-	}
 }
 

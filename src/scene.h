@@ -9,6 +9,8 @@ typedef enum {
 } SceneID;
 
 struct GameContext;
+struct Settings;
+struct SDL_Renderer;
 
 typedef struct Scene {
 	void (*init)(struct GameContext *game);
@@ -23,6 +25,9 @@ void SetScene(SceneID id);
 
 Scene GetSceneTitle(); // Defined at 's_title.c'
 Scene GetScenePlay();  // Defined at 's_play.c'
+
+void UpdateSettings(struct GameContext *game); // Defined at 'sub_settings.c'
+void DrawSettings(struct SDL_Renderer *renderer, struct Settings *settings);   // Defined at 'sub_settings.c'
 
 #endif // SCENE_H_
 

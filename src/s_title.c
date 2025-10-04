@@ -9,6 +9,7 @@
 typedef enum {
 	STATE_INTRO,
 	STATE_IDLE,
+	STATE_CONFIG,
 	STATE_SCORE
 } SceneState;
 
@@ -23,7 +24,7 @@ static SelectID   g_Select;
 static float      g_Offset[2];
 static float      g_Timer;
 
-/////
+///// Tilemaps
 
 const unsigned char g_Tilemap_1[] = { // 8x8
 	   0,   0,0xF3,0xF0,0xF0,0xF4,   0,   0,
@@ -68,15 +69,30 @@ static void draw_tilemap(SDL_Renderer *renderer, float offset)
 	}
 }
 
-#define STARS (100)
-#define DEPTH (500)
+///// Scoreboard
+
+static void draw_scoreboard(SDL_Renderer *renderer, Settings *settings)
+{
+	const int colors[10] = {0x0000FFFF,0x0080FFFF,0x00FFFFFF,0x00FF80FF,0x00FF00FF,0x80FF00FF,0xFFFF00FF,0xFF8000FF,0xFF0000FF,0xFF0080FF};
+	for (int y = 0; y < 10; y++)
+	{
+		for (int x = 0; x < 10; x++)
+			DrawCharRGBA(renderer, settings->names[y][x], (x*8) + 32, (y*16) + 80, colors[y]);
+		DrawTextRGBA(renderer, "%d",128, (y*16) + 80, colors[y], settings->highscore[y]);
+	}
+}
+
+///// Background
+
+#define STARS (150)
+#define DEPTH (100)
 static float star_x[STARS];
 static float star_y[STARS];
 static float star_z[STARS];
 
 static void draw_background(SDL_Renderer *renderer, double dt)
 {
-	const double speed = dt * INNER_FPS * 2;
+	const double speed = dt * INNER_FPS;
 	const double mid_z = DEPTH / 2;
 
 	for(int i = 0; i < STARS; i++)
@@ -89,14 +105,16 @@ static void draw_background(SDL_Renderer *renderer, double dt)
 		float x = (star_x[i] * z) + WINDOW_W / 2;
 		float y = (star_y[i] * z) + WINDOW_H / 2;
 		float a = (star_z[i] - mid_z) / mid_z;
+
 		if (a > 0.5f)
 			a = (1 - a);
+
 		SDL_SetRenderDrawColor(renderer, 255 * (i & 1), 255 * (i & 2), 255 * (i & 4), 512 * a);
 		SDL_RenderDrawPointF(renderer, x, y);
 	}
 }
 
-/////
+///// 
 
 static void init(GameContext *game)
 {
@@ -129,13 +147,33 @@ static void update(GameContext *game)
 		return;
 	}
 
+	// Input
+	char input  = IsKeyPressed(SDLK_DOWN) - IsKeyPressed(SDLK_UP);
+	bool accept = IsKeyPressed(SDLK_RETURN);
+	bool any    = IsAnyKeyPressed();
+
+	// Reset Timer / Skip Intro
+	if (any)
+		g_Timer = 0.0f;
+
 	switch(g_State)
 	{
 		case STATE_INTRO:
-			if (g_Offset[0] < 0)
+			if (g_Offset[0] < 0 || any)
 				g_State = STATE_IDLE;
 			break;
 		case STATE_IDLE:
+			// Select
+			if (input)
+				g_Select = WRAP(g_Select + input, SELECT_PLAY, SELECT_EXIT);
+
+			if (g_Select == SELECT_PLAY && accept)
+				StartTransition(1);
+			else if (g_Select == SELECT_CONFIG && accept)
+				g_State = STATE_CONFIG;
+			else if (g_Select == SELECT_EXIT && accept)
+				game->is_running = false;
+
 			// Timer to Scoreboard
 			g_Timer += game->elapsed_time;
 			if (g_Timer > 10.0f)
@@ -144,24 +182,25 @@ static void update(GameContext *game)
 				g_Timer = 0.0f;
 			}
 
-			// Input
-			{
-				char up     = IsKeyPressed(SDLK_UP);
-				char down   = IsKeyPressed(SDLK_DOWN);
-				bool accept = IsKeyPressed(SDLK_RETURN);
+			// Reset Timer
+			if (IsKeyPressed(SDLK_m))
+				g_State = STATE_SCORE;
 
-				if (up || down)
-					g_Select = WRAP(g_Select + (down - up), SELECT_PLAY, SELECT_EXIT);
+			break;
+		case STATE_CONFIG:
+			// Settings control
+			UpdateSettings(game);
 
-				if (g_Select == SELECT_PLAY && accept)
-					StartTransition(1);
-				else if (g_Select == SELECT_EXIT && accept)
-					game->is_running = false;
-				//else if (g_Select == SELECT_CONFIG && accept)
-			}
+			// Return to IDLE
+			if (IsKeyPressed(SDLK_ESCAPE))
+				g_State = STATE_IDLE;
 
 			break;
 		case STATE_SCORE:
+			// Return to IDLE
+			if (any)
+				g_State = STATE_IDLE;
+
 			// Timer to Intro
 			g_Timer += game->elapsed_time;
 			if (g_Timer > 10.0f)
@@ -170,15 +209,10 @@ static void update(GameContext *game)
 				g_Timer = 0.0f;
 				g_Offset[0] = g_Offset[1] = WINDOW_H;
 			}
+
 			break;
 	}
 
-	// Reset Timer / Skip Intro
-	if (IsAnyKeyPressed())
-	{
-		g_State = STATE_IDLE;
-		g_Timer = 0.0f;
-	}
 }
 
 static void fixed_update(GameContext *game)
@@ -210,9 +244,9 @@ static void draw(GameContext *game)
 			DrawTextRGBA(game->renderer, "HI-Score", 88, 8, 0xFFFF00FF);
 			DrawTextRGBA(game->renderer, "%d", 88, 24, 0xFFFFFFFF, game->settings.highscore[0]);
 
-			DrawTextRGBA(game->renderer, "START",    104, 200, (g_Select == SELECT_PLAY)   ? 0xFFFF00FF : 0x808000FF);
-			DrawTextRGBA(game->renderer, "SETTINGS", 104, 216, (g_Select == SELECT_CONFIG) ? 0xFFFF00FF : 0x808000FF);
-			DrawTextRGBA(game->renderer, "EXIT",     104, 232, (g_Select == SELECT_EXIT)   ? 0xFFFF00FF : 0x808000FF);
+			DrawTextRGBA(game->renderer, "START",    104, 200, (g_Select == SELECT_PLAY)   ? 0xFFFF00FF : 0x808080FF);
+			DrawTextRGBA(game->renderer, "SETTINGS", 104, 216, (g_Select == SELECT_CONFIG) ? 0xFFFF00FF : 0x808080FF);
+			DrawTextRGBA(game->renderer, "EXIT",     104, 232, (g_Select == SELECT_EXIT)   ? 0xFFFF00FF : 0x808080FF);
 
 			DrawTextRGBA(game->renderer, "CREDITS (2025)",  56, 256, 0xFFFF00FF);
 			DrawTextRGBA(game->renderer, "PROGRAMMING",     24, 272, 0xFF0000FF);
@@ -224,10 +258,16 @@ static void draw(GameContext *game)
 			DrawTextRGBA(game->renderer, "SELECT: %d", 0, 8, 0xFFFF00A0, g_Select);
 #endif
 			break;
+		case STATE_CONFIG:
+			DrawSettings(game->renderer, &game->settings);
+			DrawText(game->renderer, "^7PRESS [^1ESC^7] TO RETURN", 32, 304);
+			break;
 		case STATE_SCORE:
 #if DEBUG
 			DrawTextRGBA(game->renderer, "TIME: %f", 0, 0, 0xFF00FFA0, g_Timer);
 #endif
+			DrawTextRGBA(game->renderer, "HIGHSCORES", 80, 48, 0xFF0000FF);
+			draw_scoreboard(game->renderer, &game->settings);
 			break;
 	}
 }
