@@ -1,6 +1,8 @@
 #ifndef GRAPHICS_H_
 #define GRAPHICS_H_
 
+#include <stdbool.h>
+
 struct SDL_Renderer;
 
 typedef enum {
@@ -17,8 +19,8 @@ typedef enum {
 	SPR_BULLET_B_1, SPR_BULLET_B_2, SPR_BULLET_B_3, SPR_BULLET_B_4,
 	SPR_BULLET_C_1, SPR_BULLET_C_2, SPR_BULLET_C_3, SPR_BULLET_C_4,
 	SPR_SHIELD_1, SPR_SHIELD_2, SPR_SHIELD_3,
-	SPR_TILE_1, SPR_TILE_2, SPR_TILE_3, SPR_TILE_4, SPR_TILE_5,
-	SPR_TILE_6, SPR_TILE_7, SPR_TILE_8, SPR_TILE_9, SPR_TILE_10,
+	SPR_TILE_1,  SPR_TILE_2,  SPR_TILE_3, SPR_TILE_4, SPR_TILE_5,
+	SPR_TILE_6,  SPR_TILE_7,  SPR_TILE_8, SPR_TILE_9, SPR_TILE_10,
 	SPR_TILE_11, SPR_TILE_12, SPR_TILE_13,
 	SPR_CURSOR,
 	SPR_COUNT
@@ -41,7 +43,7 @@ typedef struct {
 	float timer;
 } Animation;
 
-void InitGraphics(struct SDL_Renderer *renderer);
+bool InitGraphics(struct SDL_Renderer *renderer);
 void CloseGraphics();
 
 void SetGraphicsColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a);

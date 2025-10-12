@@ -1,7 +1,5 @@
-#include <stdbool.h>
 #include "SDL.h"
 #include "graphics.h"
-#include "macros.h"
 
 #define GRAPHICS_WIDTH  (128)
 #define GRAPHICS_HEIGHT (128)
@@ -118,20 +116,24 @@ static const unsigned int g_UTF8Map[12] = {
 
 static SDL_Texture *g_GraphicsTexture;
 
-void InitGraphics(SDL_Renderer *renderer)
+bool InitGraphics(SDL_Renderer *renderer)
 {
 	SDL_Surface *surface = SDL_LoadBMP("assets/sprites.bmp");
-	ASSERT(surface != NULL, SDL_GetError());
+	if (surface == NULL)
+		return false;
 
 	surface->format->palette->colors[1] = (SDL_Color) {255, 255, 255, 255};
 	SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 0, 0, 0));
 
 	g_GraphicsTexture = SDL_CreateTextureFromSurface(renderer, surface);
-	ASSERT(g_GraphicsTexture != NULL, SDL_GetError());
+	if (g_GraphicsTexture == NULL)
+		return false;
 
 	SDL_SetTextureBlendMode(g_GraphicsTexture, SDL_BLENDMODE_BLEND);
 
 	SDL_FreeSurface(surface);
+
+	return true;
 }
 
 void CloseGraphics()
