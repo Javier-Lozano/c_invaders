@@ -21,16 +21,19 @@ int main(int argc, char *argv[])
 	printf("\tB-Mask: %08X\n", surface->format->Bmask);
 	printf("\tA-Mask: %08X\n", surface->format->Amask);
 
-	FILE *file = fopen("sprites.bmp.c", "w");
+	FILE *file = fopen("sprites.c", "w");
 	if (file == NULL)
 		return 1;
 
-	fprintf(file, "// sprites.c\n");
+	fprintf(file, "// sprites.c\n\n");
+
+	fprintf(file, "#define SPR_W (%d)\n", surface->w);
+	fprintf(file, "#define SPR_H (%d)\n", surface->h);
+	fprintf(file, "#define SPR_PITCH (%d)\n", surface->pitch);
 	if (surface->format->BytesPerPixel == 1)
 	{
-		fprintf(file, "// Indexed Color\n\n");
 		fprintf(file, "#define SPR_INDEXED\n");
-		fprintf(file, "#define SPR_NCOLORS (%d)\n", surface->format->palette->ncolors);
+		fprintf(file, "#define SPR_NCOLORS (%d)\n\n", surface->format->palette->ncolors);
 		fprintf(file, "static unsigned char g_SprDataColors[SPR_NCOLORS][4] = {\n");
 		for(int c = 0; c < surface->format->palette->ncolors; c++)
 		{
@@ -43,12 +46,7 @@ int main(int argc, char *argv[])
 		fprintf(file, "\n};\n\n");
 	}
 
-	fprintf(file, "// Size\n");
-	fprintf(file, "#define SPR_W (%d)\n", surface->w);
-	fprintf(file, "#define SPR_H (%d)\n", surface->h);
-	fprintf(file, "#define SPR_PITCH (%d)\n", surface->pitch);
-	fprintf(file, "#define SPR_SIZE (%d)\n\n", surface->pitch * surface->h);
-	fprintf(file, "static unsigned char g_SprData[SPRDATA_SIZE] = {\n");
+	fprintf(file, "static unsigned char g_SprData[%d] = {\n", surface->pitch * surface->h);
 
 	Uint8 *pixels = (Uint8*)surface->pixels;
 	for(int y = 0; y < surface->h; y++)
