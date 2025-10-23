@@ -42,6 +42,9 @@ src/s_title.o: src/s_title.c src/invaders.h
 src/s_play.o: src/s_play.c src/invaders.h
 	$(CC) $(OPT) `sdl2-config --cflags` -c $< -o $@
 
+assets/pack_sprites: assets/pack_sprites.c
+	$(CC) $(OPT) `sdl2-config --cflags` $< -o $@ $(LIB)
+
 # Clean
 
 clean:
