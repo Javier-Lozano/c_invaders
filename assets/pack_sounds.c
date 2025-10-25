@@ -79,32 +79,44 @@ int main(int argc, char *argv[])
 	fprintf(file, "// sounds.c \n");
 	fprintf(file, "// Sound effects by shiru8bit\n");
 	fprintf(file, "// https://opengameart.org/content/nes-8-bit-sound-effects\n");
-	fprintf(file, "// https://shiru.untergrund.net/index.shtml\n\n");
-
+	fprintf(file, "// https://shiru.untergrund.net/index.shtml\n");
+	fprintf(file, "\n");
 	fprintf(file, "// Spec\n");
 	fprintf(file, "#define SOUND_COUNT    (%d)\n", SOUND_COUNT);
 	fprintf(file, "#define SOUND_FREQ     (%d)\n", FREQ);
 	fprintf(file, "#define SOUND_CHANNELS (%d)\n", CHANNELS);
 	fprintf(file, "#define SOUND_BYTES    (%d)\n", (FORMAT & 0x00FF) / 8);
 	fprintf(file, "#define SOUND_IS_FLOAT (%d)\n", (FORMAT >> 8) & 1);
-	fprintf(file, "\n// All Sounds are packed toguether in a single buffer\n");
-	fprintf(file, "static unsigned int g_SoundIndex[SOUND_COUNT][2] = {\n");
+	fprintf(file, "\n");
+	fprintf(file, "// All Sounds are packed toguether in a single buffer\n");
+	fprintf(file, "static unsigned int g_SoundIndex[SOUND_COUNT] = {\n\t");
 	int index = 0;
 	for (int i = 0; i < SOUND_COUNT; i++)
 	{
-		fprintf(file, "\t{/*Index*/ %6d, /*Length*/ %6d}", index, length[i]);
+		fprintf(file, "%6d", index);
 		if (i != SOUND_COUNT -1)
-		fprintf(file, ", // %s\n", g_Names[i]);
+			fprintf(file, ", // %s\n\t", g_Names[i]);
 		else
-		fprintf(file, "  // %s\n", g_Names[i]);
+			fprintf(file, "  // %s\n", g_Names[i]);
 		index += length[i];
 	}
-	fprintf(file, "};\n\n");
-
+	fprintf(file, "};\n");
+	fprintf(file, "\n");
+	fprintf(file, "static unsigned int g_SoundLength[SOUND_COUNT] = {\n\t");
+	for (int i = 0; i < SOUND_COUNT; i++)
+	{
+		fprintf(file, "%6d", length[i]);
+		if (i != SOUND_COUNT -1)
+			fprintf(file, ", // %s\n\t", g_Names[i]);
+		else
+			fprintf(file, "  // %s\n", g_Names[i]);
+	}
+	fprintf(file, "};\n");
+	fprintf(file, "\n");
 	fprintf(file, "static unsigned char g_SoundBuffer[%d] = {\n", index);
 	for (int i = 0; i < SOUND_COUNT; i++)
 	{
-		fprintf(file, "//\t%s\n\t", g_Names[i]);
+		fprintf(file, "//\t%s\n", g_Names[i]);
 		for (Uint32 x = 0; x < length[i]; x++)
 		{
 			Uint8* b = buffer[i];

@@ -180,8 +180,11 @@ static void update(GameContext *game, double dt)
 				g_State = STATE_IDLE;
 			break;
 		case STATE_IDLE:
-			if (input)
+			if (input != 0)
+			{
 				g_Select = WRAP(g_Select + input, SELECT_PLAY, SELECT_EXIT);
+				PlaySoundVol(SND_CURSOR, 20);
+			}
 
 			if (accept)
 			{
@@ -191,6 +194,8 @@ static void update(GameContext *game, double dt)
 					g_State = STATE_CONFIG;
 				if (g_Select == SELECT_EXIT)
 					game->is_running = false;
+
+				PlaySoundVol(SND_CONFIRM, 20);
 			}
 
 			// Timer to Scoreboard
@@ -211,7 +216,10 @@ static void update(GameContext *game, double dt)
 
 			// Return to IDLE
 			if (IsKeyPressed(SDLK_ESCAPE))
+			{
 				g_State = STATE_IDLE;
+				PlaySoundVol(SND_CANCEL, 40);
+			}
 
 			break;
 		case STATE_SCORE:
