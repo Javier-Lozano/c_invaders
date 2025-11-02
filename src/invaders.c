@@ -26,10 +26,10 @@ static const char * g_SoundSrc[SND_COUNT] = {
 	"assets/69_explode.wav",     // Hit Player
 	"assets/77_arrowbounce.wav", // Hit Miss
 	"assets/78_arrowhit.wav",    // Hit Alien
-	"assets/52_step1.wav",       // Alien Step 1
-	"assets/53_step2.wav",       // Alien Step 2
-	"assets/54_step3.wav",       // Alien Step 3
-	"assets/55_step4.wav",       // Alien Step 4
+	"assets/53_step2.wav",       // Alien Step 1
+	"assets/52_step1.wav",       // Alien Step 2
+	"assets/55_step4.wav",       // Alien Step 3
+	"assets/54_step3.wav",       // Alien Step 4
 	"assets/64_lose2.wav",       // Game Over
 };
 
@@ -600,13 +600,13 @@ TransState GetTransitionState()
 
 ///// Scene
 
-static SceneID g_TargetScene;
+static SceneID g_SceneID;
 static bool    g_ChangeScene;
 static Scene   g_Scene;
 
 void SwitchScene(SceneID id)
 {
-	g_TargetScene = id;
+	g_SceneID = id;
 	g_ChangeScene = true;
 }
 
@@ -652,7 +652,7 @@ void LoadSAVEDAT(Settings *settings)
 	if (error_read || error_eof)
 		goto DEFAULT_FILE;
 
-#if defined DEBUG && (0)
+#if (0)
 	printf("'SAVE.DAT' loaded.\n");
 	printf("Scale:   %d\n", settings->scale);
 	printf("Angle:   %d\n", settings->angle);
@@ -681,7 +681,7 @@ void WriteSAVEDAT(Settings *settings)
 	fwrite(settings, sizeof(Settings), 1, file);
 	fclose(file);
 
-#if defined DEBUG && (0)
+#if (0)
 	printf("'SAVE.DAT' saved.\n");
 	printf("Scale:   %d\n", settings->scale);
 	printf("Angle:   %d\n", settings->angle);
@@ -900,8 +900,8 @@ void InitGame(GameContext *game, int argc, char *argv[])
 	SDL_FreeSurface(surface);
 
 	// Scene
-	g_Scene = GetSceneTitle();
-	//g_Scene = GetScenePlay();
+	//g_Scene = GetSceneTitle();
+	g_Scene = GetScenePlay();
 
 	// Time
 	g_TimePrev = SDL_GetPerformanceCounter();
@@ -999,7 +999,7 @@ void GameLoop(GameContext *game)
 	// Scene
 	if (g_ChangeScene)
 	{
-		switch(g_TargetScene)
+		switch(g_SceneID)
 		{
 			case SCENE_TITLE:
 				g_Scene = GetSceneTitle();
@@ -1036,7 +1036,7 @@ void GameLoop(GameContext *game)
 
 	update_transition(game->renderer, g_ElapsedTime);
 
-#if defined DEBUG && (1)
+#if (1)
 	SDL_SetRenderDrawColor(game->renderer, 255, 0, 0, 32);
 	for(int x = 0; x < WINDOW_W; x +=8 )
 		SDL_RenderDrawLine(game->renderer, x, 0, x, WINDOW_H);
@@ -1046,9 +1046,9 @@ void GameLoop(GameContext *game)
 	SDL_RenderDrawLine(game->renderer, WINDOW_W/2, 0, WINDOW_W/2, WINDOW_H);
 	SDL_RenderDrawLine(game->renderer, 0, WINDOW_H/2, WINDOW_W, WINDOW_H/2);
 
-	DrawTextRGBA(game->renderer, "VSync: %s", 0, 0, 0xFFFF0080, game->settings.vsync ? "YES" : "NO");
-	DrawTextRGBA(game->renderer, "Fullscreen: %s", 0, 8, 0xFFFF0080, game->settings.fullscreen ? "YES" : "NO");
-	DrawTextRGBA(game->renderer, "Rotation: %d°", 0, 16, 0xFFFF0080, game->settings.angle*90);
+	//DrawTextRGBA(game->renderer, "VSync: %s", 0, 0, 0xFFFF0080, game->settings.vsync ? "YES" : "NO");
+	//DrawTextRGBA(game->renderer, "Fullscreen: %s", 0, 8, 0xFFFF0080, game->settings.fullscreen ? "YES" : "NO");
+	//DrawTextRGBA(game->renderer, "Rotation: %d°", 0, 16, 0xFFFF0080, game->settings.angle*90);
 #endif
 
 	// Present to Screen
