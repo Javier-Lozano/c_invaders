@@ -6,24 +6,21 @@
 
 ///// Macros
 
+#define ASSERT(assert, str) Assert(assert, #assert, __FILE__, __LINE__, str)
 #define DEFAULT_FPS (60)
 #define WINDOW_W    (240)
 #define WINDOW_H    (320)
 
-#define ASSERT(assert, str) \
-	do { \
-		if (!(assert)) { \
-			printf("\033[1;91m ASSERT:\033[0m '"#assert"' failed. '%s' at line %d\033.\n", __FILE__, __LINE__); \
-			printf("\033[1;93mMESSAGE:\033[0m '%s'\n", str); \
-			exit(EXIT_FAILURE); \
-		} \
-	} while(0)
+///// Utils
 
-#define LERP(a, b, t) (((1 - t) * a) + t * b)
-#define WRAP(val, min, max) ((val < min) ? max : ((val > max) ? min : val))
-#define CLAMP(val, min, max) ((val < min) ? min : ((val > max) ? max : val))
-#define MIN(v1, v2) (v1 < v2 ? v1 : v2)
-#define MAX(v1, v2) (v1 > v2 ? v1 : v2)
+void Assert(bool assert, const char *str_assert, const char *file, int line, const char *msg);
+double Lerp(double a, double b, double t);
+int Wrap(int val, int min, int max);
+int Clamp(int val, int min, int max);
+int Min(int v1, int v2);
+int Max(int v1, int v2);
+void HSVToRGB(float hue, float sat, float val, unsigned char *r, unsigned char *g, unsigned char *b);
+unsigned int HueToRGB(float hue);
 
 ///// Audio
 
@@ -71,23 +68,6 @@ typedef enum {
 	SPR_COUNT
 } SpriteID;
 
-typedef enum {
-	SEQ_PLAYER_DEAD,
-	SEQ_HIT,
-	SEQ_BULLET_HIT,
-	SEQ_BULLET_A,
-	SEQ_BULLET_B,
-	SEQ_BULLET_C,
-	SEQ_COUNT
-} SequenceID;
-
-typedef struct {
-	SequenceID seq_id;
-	int pivot;
-	float duration;
-	float timer;
-} Animation;
-
 void SetGraphicsColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
 void DrawTile(struct SDL_Renderer *renderer, int tile, int x, int y);
@@ -101,11 +81,6 @@ int DrawCharRGBA(struct SDL_Renderer *renderer, unsigned int c, int x, int y, un
 
 int DrawText(struct SDL_Renderer *renderer, const char *str, int x, int y, ...);
 int DrawTextRGBA(struct SDL_Renderer *renderer, const char *str, int x, int y, unsigned int rgba, ...);
-
-void InitAnimation(Animation *anim, SequenceID seq_id, float seconds);
-void PlayAnimation(struct SDL_Renderer *renderer, Animation *anim, float dt, int x, int y);
-
-void DrawGraphicsTexture(struct SDL_Renderer *renderer);
 
 ///// Input
 
@@ -156,14 +131,14 @@ typedef struct Scene {
 
 void SwitchScene(SceneID id);
 
-Scene GetSceneTitle(); // Defined at 's_title.c'
-Scene GetScenePlay();  // Defined at 's_play.c'
+Scene GetSceneTitle(); // Defined at 'scr_title.c'
+Scene GetScenePlay();  // Defined at 'scr_play.c'
 
 ///// Settings
 
 typedef struct Settings {
 	int  highscore[10];
-	char names[10][11];
+	char names[10*11];
 	char volume;
 	char scale;
 	char angle;
@@ -171,9 +146,12 @@ typedef struct Settings {
 	bool fullscreen;
 } Settings;
 
+void ResetSettings(Settings *settings);
 void LoadSAVEDAT(Settings *settings);
 void WriteSAVEDAT(Settings *settings);
 void ModScreen(struct SDL_Window *window, Settings *s, char s_value, char a_value);
+
+// Defined at 'sub_settings.c'
 void UpdateSettings(SDL_Window *window, SDL_Renderer *renderer, Settings *settings);
 void DrawSettings(SDL_Renderer *renderer, Settings *settings);
 
@@ -183,7 +161,6 @@ typedef struct GameContext {
 	SDL_Window   *window;
 	SDL_Renderer *renderer;
 	SDL_Texture  *fbuffer;
-
 	Settings settings;
 	int      framerate;
 	bool     is_running;

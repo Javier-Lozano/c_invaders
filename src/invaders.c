@@ -1,13 +1,14 @@
 #include "invaders.h"
 
-///// Audio
-
 #define SND_FREQ     (44100)
 #define SND_FORMAT   (AUDIO_S16SYS)
 #define SND_CHANNELS (1)
 #define SND_SAMPLES  (1024)
 #define SND_MAX_VOL  (100)
 
+#define TILE_SIZE (8)
+
+// Sound
 typedef struct Sound {
 	Uint8 *buf;
 	Uint32 len;
@@ -16,94 +17,15 @@ typedef struct Sound {
 	bool   play;
 } Sound;
 
-static const char * g_SoundSrc[SND_COUNT] = {
-	"assets/06_cursor2.wav",     // Cursor
-	"assets/59_confirm.wav",     // Confirm
-	"assets/57_drop.wav",        // Cancel
-	"assets/73_bowrelease1.wav", // Fire Player
-	"assets/16_falling.wav",     // Fire Alien
-	"assets/28_jingle.wav",      // Hit UFO
-	"assets/69_explode.wav",     // Hit Player
-	"assets/77_arrowbounce.wav", // Hit Miss
-	"assets/78_arrowhit.wav",    // Hit Alien
-	"assets/53_step2.wav",       // Alien Step 1
-	"assets/52_step1.wav",       // Alien Step 2
-	"assets/55_step4.wav",       // Alien Step 3
-	"assets/54_step3.wav",       // Alien Step 4
-	"assets/64_lose2.wav",       // Game Over
-};
-
 static SDL_AudioDeviceID g_AudioDevice;
 static SDL_AudioSpec     g_AudioSpec;
-static Sound             g_Sound[SND_COUNT];
+static Sound             g_Sounds[SND_COUNT];
 
-void PlaySoundVol(SoundID id, char volume)
-{
-	if (id < 0 || id >= SND_COUNT)
-		return;
+static void init_audio(char *volume);
+static void audio_callback(void *userdata, Uint8* stream, int len);
 
-	g_Sound[id].vol  = volume;
-	g_Sound[id].pos  = 0;
-	g_Sound[id].play = true;
-}
-
-void PlaySound(SoundID id)
-{
-	PlaySoundVol(id, 100);
-}
-
-static void audio_callback(void *userdata, Uint8* stream, int len)
-{
-	Sint16  mix[SND_SAMPLES] = {0};
-	Sint16 *dst    = (Sint16*)stream;
-	float   volume = (float)(*(char*)userdata) / (float)SND_MAX_VOL;
-
-	SDL_memset(stream, 0, len);
-
-	for(int i = 0; i < SND_COUNT; i++)
-	{
-		Sound  *snd = g_Sound+i;
-
-		if (!snd->play)
-			continue;
-
-		Sint16 *src       = (Sint16*)(snd->buf + snd->pos);
-		int     bytes     = snd->len - snd->pos;
-		int     step      = (bytes < len) ? bytes : len;
-		float   inner_vol = (float)snd->vol / (float)SND_MAX_VOL;
-
-		for (int j = 0; j < (step/2); j++)
-		{
-			float sample = (float)src[j] * inner_vol;
-			sample = CLAMP(sample, -32768, 32767);
-			mix[j] += (Sint16)sample;
-		}
-
-		snd->pos += step;
-		if (snd->pos >= snd->len)
-			snd->play = false;
-	}
-
-	for (int i = 0; i < SND_SAMPLES; ++i)
-	{
-		float sample = mix[i] * volume;
-		sample = CLAMP(sample, -32768, 32767);
-		dst[i] = (Sint16)sample;
-	}
-}
-
-///// Graphics
-
-#define MAX_FRAMES (8)
-#define GLYPH_SIZE  (8)
-
-typedef struct {
-	int frames[MAX_FRAMES];
-	int length;
-} Sequence;
-
+// Graphics
 static SDL_Texture *g_SpriteSheet;
-
 static const unsigned int g_UTF8Map[12] = {
 	0xC381, // Á
 	0xC389, // É
@@ -118,7 +40,6 @@ static const unsigned int g_UTF8Map[12] = {
 	0xC3BA, // ú
 	0xC3B1  // ñ
 };
-
 static const SDL_Rect g_Sprites[SPR_COUNT] = {
 		{   0,  96, 16, 8 }, /* SPR_PLAYER */
 		{  16,  96, 16, 8 }, /* SPR_ENEMY_A_1 */
@@ -172,38 +93,227 @@ static const SDL_Rect g_Sprites[SPR_COUNT] = {
 		{ 104, 120,  8, 8 }  /* SPR_CURSOR */
 };
 
-static const Sequence g_Sequences[SEQ_COUNT] = {
-	/* SEQ_PLAYER_DEAD */
+static void init_graphics(SDL_Renderer *renderer);
+static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, int *x, int *y, va_list args);
+
+// Input
+static char g_KeyState[SDL_NUM_SCANCODES];
+static bool g_AnyKeyPressed;
+
+static void input_update();
+
+// Transition
+static TransState g_TransState;
+static double     g_TransOffset;
+static double     g_TransTimer;
+static int        g_TransStage;
+
+// Scene Manager
+static SceneID g_SceneID;
+static bool    g_ChangeScene;
+static Scene   g_CurrentScene;
+
+// Time
+static Uint64 g_TimePrev;
+static Uint64 g_TimeCurr;
+static double g_ElapsedTime;
+static double g_Accumulator;
+
+///// Utils
+
+void Assert(bool assert, const char *str_assert, const char *file, int line, const char *msg)
+{
+	if (!assert) {
+		printf("\033[1m ASSERT:\033[0m '\033[1;91m%s\033[0m' failed. '\033[1;92m%s\033[0m' at line \033[1;93m%d\033[0m.\n", str_assert, file, line);
+		printf("\033[1mMESSAGE:\033[0m '\033[1;93m%s\033[0m'\n", msg);
+		exit(EXIT_FAILURE);
+	}
+}
+
+double Lerp(double a, double b, double t)
+{
+	return (((1 - t) * a) + t * b);
+}
+
+int Wrap(int val, int min, int max)
+{
+	const int range = (max + 1) - min;
+	return ((((val - min) % range) + range) % (range)) + min;
+}
+
+int Clamp(int val, int min, int max)
+{
+	return ((val < min) ? min : ((val > max) ? max : val));
+}
+
+int Min(int v1, int v2)
+{
+	return (v1 < v2 ? v1 : v2);
+}
+
+int Max(int v1, int v2)
+{
+	return (v1 > v2 ? v1 : v2);
+}
+
+void HSVToRGB(float hue, float sat, float val, unsigned char *r, unsigned char *g, unsigned char *b)
+{
+	float h = SDL_fmodf(hue, 360.0f) / 60.0f;
+	float c = sat * val;
+	float x = c * (1.0f - SDL_fabsf(SDL_fmodf(h, 2) - 1.0f));
+
+	switch ((int)h)
 	{
-		.frames = { SPR_PLAYER_DEAD_1, SPR_PLAYER_DEAD_2, SPR_PLAYER_DEAD_3, SPR_PLAYER_DEAD_4 },
-		.length = 4
-	},
-	/* SEQ_HIT */
+		case 0:
+			*r = c * 255;
+			*g = x * 255;
+			break;
+		case 1:
+			*r = x * 255;
+			*g = c * 255;
+			break;
+		case 2:
+			*g = c * 255;
+			*b = x * 255;
+			break;
+		case 3:
+			*g = x * 255;
+			*b = c * 255;
+			break;
+		case 4:
+			*r = x * 255;
+			*b = c * 255;
+			break;
+		case 5:
+			*r = c * 255;
+			*b = x * 255;
+			break;
+	}
+}
+
+unsigned int HueToRGB(float hue)
+{
+	unsigned char r = 0, g = 0, b = 0;
+	unsigned int  result = 0;
+
+	HSVToRGB(hue, 1.0f, 1.0f, &r, &g, &b);
+
+	result = r << 24 | g << 16 | b << 8 | 0xFF;
+
+	return result;
+}
+
+///// Audio
+
+static void init_audio(char *volume)
+{
+	const char * src_sounds[SND_COUNT] = {
+		"assets/06_cursor2.wav",     // Cursor
+		"assets/59_confirm.wav",     // Confirm
+		"assets/57_drop.wav",        // Cancel
+		"assets/73_bowrelease1.wav", // Fire Player
+		"assets/16_falling.wav",     // Fire Alien
+		"assets/28_jingle.wav",      // Hit UFO
+		"assets/69_explode.wav",     // Hit Player
+		"assets/77_arrowbounce.wav", // Hit Miss
+		"assets/78_arrowhit.wav",    // Hit Alien
+		"assets/53_step2.wav",       // Alien Step 1
+		"assets/52_step1.wav",       // Alien Step 2
+		"assets/55_step4.wav",       // Alien Step 3
+		"assets/54_step3.wav",       // Alien Step 4
+		"assets/64_lose2.wav",       // Game Over
+	};
+
+	// All sound effects are 44100hz, 16bit signed int, mono
+	SDL_AudioSpec spec = {
+		.freq     = SND_FREQ,
+		.format   = SND_FORMAT,
+		.channels = SND_CHANNELS,
+		.callback = audio_callback,
+		.samples  = SND_SAMPLES,
+		.userdata = volume
+	};
+
+	g_AudioDevice = SDL_OpenAudioDevice(NULL, 0, &spec, &g_AudioSpec, 0);
+	ASSERT(g_AudioDevice != 0, SDL_GetError());
+
+	SDL_AudioSpec dummy;
+	for (int i = 0; i < SND_COUNT; i++)
+		ASSERT(SDL_LoadWAV(src_sounds[i], &dummy, &g_Sounds[i].buf, &g_Sounds[i].len) != NULL, SDL_GetError());
+
+	SDL_PauseAudioDevice(g_AudioDevice, 0);
+}
+
+static void audio_callback(void *userdata, Uint8* stream, int len)
+{
+	Sint16  mix[SND_SAMPLES] = {0};
+	Sint16 *dst    = (Sint16*)stream;
+	float   volume = (float)(*(char*)userdata) / (float)SND_MAX_VOL;
+
+	SDL_memset(stream, 0, len);
+
+	for (int i = 0; i < SND_COUNT; i++)
 	{
-		.frames = { SPR_HIT_1, SPR_HIT_2, SPR_HIT_3, SPR_HIT_4, -1 },
-		.length = 5
-	},
-	/* SEQ_BULLET_HIT */
+		Sound  *snd = g_Sounds+i;
+
+		if (!snd->play)
+			continue;
+
+		Sint16 *src       = (Sint16*)(snd->buf + snd->pos);
+		int     bytes     = snd->len - snd->pos;
+		int     step      = (bytes < len) ? bytes : len;
+		float   inner_vol = (float)snd->vol / (float)SND_MAX_VOL;
+
+		for (int j = 0; j < (step/2); j++)
+		{
+			float sample = (float)src[j] * inner_vol;
+			sample = (float)Clamp(sample, -32768, 32767);
+			mix[j] += (Sint16)sample;
+		}
+
+		snd->pos += step;
+		if (snd->pos >= snd->len)
+			snd->play = false;
+	}
+
+	for (int i = 0; i < SND_SAMPLES; ++i)
 	{
-		.frames = { SPR_BULLET_HIT_1, SPR_BULLET_HIT_2, SPR_BULLET_HIT_3, SPR_BULLET_HIT_4, -1},
-		.length = 4
-	},
-	/* SEQ_BULLET_A */
-	{
-		.frames = { SPR_BULLET_A_1, SPR_BULLET_A_2, SPR_BULLET_A_3, SPR_BULLET_A_4 },
-		.length = 4
-	},
-	/* SEQ_BULLET_B */
-	{
-		.frames = { SPR_BULLET_B_1, SPR_BULLET_B_2, SPR_BULLET_B_3, SPR_BULLET_B_4 },
-		.length = 4
-	},
-	/* SEQ_BULLET_C */
-	{
-		.frames = { SPR_BULLET_C_1, SPR_BULLET_C_2, SPR_BULLET_C_3, SPR_BULLET_C_4 },
-		.length = 4
-	},
-};
+		float sample = mix[i] * volume;
+		sample = (float)Clamp(sample, -32768, 32767);
+		dst[i] = (Sint16)sample;
+	}
+}
+
+void PlaySoundVol(SoundID id, char volume)
+{
+	if (id < 0 || id >= SND_COUNT)
+		return;
+
+	g_Sounds[id].vol  = volume;
+	g_Sounds[id].pos  = 0;
+	g_Sounds[id].play = true;
+}
+
+void PlaySound(SoundID id)
+{
+	PlaySoundVol(id, 100);
+}
+
+///// Graphics
+
+static void init_graphics(SDL_Renderer *renderer)
+{
+	SDL_Surface *surface = SDL_LoadBMP("assets/sprites.bmp");
+	ASSERT(surface != NULL, SDL_GetError());
+
+	SDL_SetColorKey(surface, true, SDL_MapRGBA(surface->format, 0, 0, 0, 0xFF));
+
+	g_SpriteSheet = SDL_CreateTextureFromSurface(renderer, surface);
+	ASSERT(g_SpriteSheet != NULL, SDL_GetError());
+	SDL_SetTextureBlendMode(g_SpriteSheet, SDL_BLENDMODE_BLEND);
+
+	SDL_FreeSurface(surface);
+}
 
 void SetGraphicsColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
@@ -216,12 +326,12 @@ void DrawTile(SDL_Renderer *renderer, int tile, int x, int y)
 	if (tile < 0 || tile > 255)
 		return;
 
-	SDL_Rect dst = {x, y, GLYPH_SIZE, GLYPH_SIZE};
+	SDL_Rect dst = {x, y, TILE_SIZE, TILE_SIZE};
 	SDL_Rect src = {
-		src.x = (tile % 16) * GLYPH_SIZE,
-		src.y = (tile / 16) * GLYPH_SIZE,
-		GLYPH_SIZE,
-		GLYPH_SIZE
+		src.x = (tile % 16) * TILE_SIZE,
+		src.y = (tile / 16) * TILE_SIZE,
+		TILE_SIZE,
+		TILE_SIZE
 	};
 
 	SDL_RenderCopy(renderer, g_SpriteSheet, &src, &dst);
@@ -265,7 +375,7 @@ int DrawChar(SDL_Renderer *renderer, unsigned int c, int x, int y)
 	}
 	else
 	{
-		for(int i = 0; i < 12; i++)
+		for (int i = 0; i < 12; i++)
 		{
 			if (c == g_UTF8Map[i])
 			{
@@ -293,20 +403,20 @@ static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, i
 	int start_x = *x;
 	int count   = 0;
 
-	for(int i = 0; text[i]; i++)
+	for (int i = 0; text[i]; i++)
 	{
 		unsigned char c = (unsigned char)text[i];
 
 		if (c == ' ')
 		{
-			*x += GLYPH_SIZE;
+			*x += TILE_SIZE;
 			count++;
 			continue;
 		}
 		else if (c == '\n')
 		{
 			*x = start_x;
-			*y += GLYPH_SIZE;
+			*y += TILE_SIZE;
 			count++;
 			continue;
 		}
@@ -318,7 +428,7 @@ static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, i
 
 			//TODO: Implement floating point precision format specifier
 
-			switch(f)
+			switch (f)
 			{
 				case '\0':
 					continue;
@@ -363,7 +473,7 @@ static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, i
 		if (c < 0x80)
 		{
 			DrawTile(renderer, c, *x, *y);
-			*x += GLYPH_SIZE;
+			*x += TILE_SIZE;
 			count++;
 		}
 		else if (c > 0xC1 && c < 0xF5)
@@ -378,12 +488,12 @@ static int draw_text(SDL_Renderer *renderer, const char *text, bool formatted, i
 
 			i = index - 1;
 
-			for(int u = 0; u < 12; u++)
+			for (int u = 0; u < 12; u++)
 			{
 				if (utf8 == g_UTF8Map[u])
 				{
 					DrawTile(renderer, 128+u, *x, *y);
-					*x += GLYPH_SIZE;
+					*x += TILE_SIZE;
 					count++;
 					break;
 				}
@@ -417,12 +527,6 @@ int DrawTextRGBA(SDL_Renderer *renderer, const char *str, int x, int y, unsigned
 			(rgba >> 8 ) & 0xFF,
 			(rgba      ) & 0xFF);
 
-//	SetGraphicsColor(
-//			(rgba & 0xFF000000) >> 24,
-//			(rgba & 0x00FF0000) >> 16,
-//			(rgba & 0x0000FF00) >> 8,
-//			(rgba & 0x000000FF));
-
 	va_start(args, rgba);
 	count = draw_text(renderer, str, true, &x, &y, args);
 	va_end(args);
@@ -430,44 +534,7 @@ int DrawTextRGBA(SDL_Renderer *renderer, const char *str, int x, int y, unsigned
 	return count;
 }
 
-void InitAnimation(Animation *anim, SequenceID seq_id, float seconds)
-{
-	anim->seq_id   = seq_id;
-	anim->pivot    = 0;
-	anim->duration = seconds;
-	anim->timer    = 0.0f;
-}
-
-void PlayAnimation(SDL_Renderer *renderer, Animation *anim, float dt, int x, int y)
-{
-	if (anim->seq_id < 0 || anim->seq_id > SEQ_COUNT-1)
-		return;
-
-	const Sequence *seq = &g_Sequences[anim->seq_id];
-	const float step = anim->duration / seq->length;
-
-	anim->timer += dt;
-	if (anim->timer >= step)
-	{
-		anim->timer -= step;
-		anim->pivot++;
-
-		if (anim->pivot == seq->length)
-			anim->pivot = 0;
-	}
-
-	DrawSprite(renderer, seq->frames[anim->pivot], x, y);
-}
-
-void DrawSpriteSheet(SDL_Renderer *renderer)
-{
-	SDL_RenderCopy(renderer, g_SpriteSheet, NULL, &(SDL_Rect){0,0,128,128});
-}
-
 ///// Input
-
-static char g_KeyState[SDL_NUM_SCANCODES];
-static bool g_AnyKeyPressed;
 
 static void input_update()
 {
@@ -475,7 +542,7 @@ static void input_update()
 
 	g_AnyKeyPressed = false;
 
-	for(int i = 0; i < SDL_NUM_SCANCODES; i++)
+	for (int i = 0; i < SDL_NUM_SCANCODES; i++)
 	{
 		char state = 0;
 		if (keyboard[i] > 0)
@@ -500,7 +567,7 @@ void InputClear()
 {
 	g_AnyKeyPressed = false;
 
-	for(int i = 0; i < SDL_NUM_SCANCODES; i++)
+	for (int i = 0; i < SDL_NUM_SCANCODES; i++)
 		g_KeyState[i] &= STATE_DOWN;
 }
 
@@ -531,11 +598,6 @@ bool IsKeyReleased(SDL_Keycode key)
 
 ///// Transition
 
-static TransState g_TransState;
-static double     g_TransOffset;
-static double     g_TransTimer;
-static int        g_TransStage;
-
 void StartTransition(int stage)
 {
 	g_TransState  = TRANS_INIT;
@@ -548,7 +610,6 @@ static void update_transition(SDL_Renderer *renderer, double dt)
 {
 	const float speed  = dt * WINDOW_H;
 	const float mid    = WINDOW_H / 2;
-	const bool  draw_stage = g_TransStage > 0;
 
 	SDL_FRect rects[2] = {
 		{0,        0, WINDOW_W, 0},
@@ -589,7 +650,7 @@ static void update_transition(SDL_Renderer *renderer, double dt)
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderFillRectsF(renderer, rects, 2);
 
-	if (draw_stage)
+	if (g_TransStage > 0)
 		DrawText(renderer, "^1STAGE^7 %d", 84, g_TransOffset-8, g_TransStage);
 }
 
@@ -600,10 +661,6 @@ TransState GetTransitionState()
 
 ///// Scene
 
-static SceneID g_SceneID;
-static bool    g_ChangeScene;
-static Scene   g_Scene;
-
 void SwitchScene(SceneID id)
 {
 	g_SceneID = id;
@@ -612,28 +669,33 @@ void SwitchScene(SceneID id)
 
 ///// Settings
 
-static const Settings g_DefaultSettings = {
-	.highscore = {
-		57300, 37500, 30000, 25000, 20000, 19500, 19000, 15000, 10000, 5000
-	},
-	.names = {
-		"B. SABBATH",
-		"DIO       ",
-		"B.O.C.    ",
-		"K. CRIMSON",
-		"D. PURPLE ",
-		"SAXON     ",
-		"RHAPSODY  ",
-		"PAGAN ALTR",
-		"CANDLEMASS",
-		"METALLICA ",
-	},
-	.volume = 50,
-	.scale = 2,
-	.angle = 0,
-	.vsync = false,
-	.fullscreen = false
-};
+void ResetSettings(Settings *settings)
+{
+	const Settings default_settings = {
+		.highscore = {
+			57300, 37500, 30000, 25000, 20000, 19500, 19000, 15000, 10000, 5000
+		},
+		.names = {
+			"B. SABBATH\n"
+			"DIO       \n"
+			"B.O.C.    \n"
+			"K. CRIMSON\n"
+			"D. PURPLE \n"
+			"SAXON     \n"
+			"RHAPSODY  \n"
+			"PAGAN ALTR\n"
+			"CANDLEMASS\n"
+			"METALLICA \n"
+		},
+		.volume = 50,
+		.scale = 2,
+		.angle = 0,
+		.vsync = false,
+		.fullscreen = false
+	};
+
+	*settings = default_settings;
+}
 
 void LoadSAVEDAT(Settings *settings)
 {
@@ -652,19 +714,11 @@ void LoadSAVEDAT(Settings *settings)
 	if (error_read || error_eof)
 		goto DEFAULT_FILE;
 
-#if (0)
-	printf("'SAVE.DAT' loaded.\n");
-	printf("Scale:   %d\n", settings->scale);
-	printf("Angle:   %d\n", settings->angle);
-	printf("Vsync:   %d\n", settings->vsync);
-	printf("Fullscr: %d\n", settings->fullscreen);
-#endif
-
 	return;
 
 DEFAULT_FILE:
 	printf("Creating 'SAVE.DAT'\n");
-	*settings = g_DefaultSettings;
+	ResetSettings(settings);
 	WriteSAVEDAT(settings);
 	return;
 }
@@ -681,18 +735,10 @@ void WriteSAVEDAT(Settings *settings)
 	fwrite(settings, sizeof(Settings), 1, file);
 	fclose(file);
 
-#if (0)
-	printf("'SAVE.DAT' saved.\n");
-	printf("Scale:   %d\n", settings->scale);
-	printf("Angle:   %d\n", settings->angle);
-	printf("Vsync:   %d\n", settings->vsync);
-	printf("Fullscr: %d\n", settings->fullscreen);
-#endif
-
 	return;
 }
 
-void ModScreen(struct SDL_Window *window, Settings *s, char s_value, char a_value)
+void ModScreen(SDL_Window *window, Settings *s, char s_value, char a_value)
 {
 	SDL_DisplayMode display;
 	int display_index = SDL_GetWindowDisplayIndex(window);
@@ -704,7 +750,7 @@ void ModScreen(struct SDL_Window *window, Settings *s, char s_value, char a_valu
 
 	// Rotate Screen
 	if (a_value != 0)
-		s->angle = WRAP(s->angle + a_value, 0, 3);
+		s->angle = Wrap(s->angle + a_value, 0, 3);
 
 	bool is_vertical = (s->angle % 2) == 0;
 	int w = is_vertical ? WINDOW_W : WINDOW_H;
@@ -712,7 +758,7 @@ void ModScreen(struct SDL_Window *window, Settings *s, char s_value, char a_valu
 
 	// Scale Screen
 	if (s_value != 0 || a_value != 0)
-		s->scale = CLAMP(s->scale + s_value, 1, MIN(display.h / h, display.w / w));
+		s->scale = Clamp(s->scale + s_value, 1, Min(display.h / h, display.w / w));
 
 	if (!s->fullscreen)
 	{
@@ -722,89 +768,7 @@ void ModScreen(struct SDL_Window *window, Settings *s, char s_value, char a_valu
 	}
 }
 
-static char g_SettingsSelect = 1;
-
-void UpdateSettings(SDL_Window *window, SDL_Renderer *renderer, Settings *settings)
-{
-	char input  = IsKeyPressed(SDLK_DOWN) - IsKeyPressed(SDLK_UP);
-	char left   = IsKeyPressed(SDLK_LEFT);
-	char right  = IsKeyPressed(SDLK_RIGHT);
-	bool accept = IsKeyPressed(SDLK_RETURN);
-	g_SettingsSelect = WRAP(g_SettingsSelect + input, 1, 6);
-
-	if (input != 0)
-		PlaySoundVol(SND_CURSOR, 20);
-	if (left || right || accept)
-		PlaySoundVol(SND_CONFIRM, 20);
-
-
-	switch(g_SettingsSelect)
-	{
-		case 1:
-			if (left || right || accept)
-			{
-				settings->fullscreen = !settings->fullscreen;
-				SDL_SetWindowFullscreen(window, settings->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-				ModScreen(window, settings, 0, 0);
-			}
-			break;
-		case 2:
-			if (left || right)
-			{
-				ModScreen(window, settings, right-left, 0);
-			}
-			break;
-		case 3:
-			if (left || right)
-			{
-				ModScreen(window, settings, 0, right-left);
-			}
-			break;
-		case 4:
-			if (left || right)
-			{
-				settings->vsync = !settings->vsync;
-				SDL_RenderSetVSync(renderer, settings->vsync);
-			}
-			break;
-		case 5:
-			if (left || right)
-			{
-				char val = (right-left) * 5;
-				settings->volume = CLAMP(settings->volume + val, 0, 100);
-			}
-		case 6:
-			if (accept)
-			{
-				*settings = g_DefaultSettings;
-				SDL_SetWindowFullscreen(window, settings->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-				SDL_RenderSetVSync(renderer, settings->vsync);
-				ModScreen(window, settings, 0, 0);
-			}
-			break;
-	}
-}
-
-void DrawSettings(SDL_Renderer *renderer, Settings *settings)
-{
-	DrawText(renderer, "^2C",       112, 16);
-	DrawText(renderer, "^5INVADERS", 88, 32);
-	DrawText(renderer, "^3SETTINGS", 88, 48);
-
-	DrawTextRGBA(renderer, "FULLSCREEN         %s",     16,  64, g_SettingsSelect == 1 ? 0xFF0000FF : 0x808080FF, settings->fullscreen ? "YES" : "NO");
-	DrawTextRGBA(renderer, "SCALING            %d",     16,  80, g_SettingsSelect == 2 ? 0xFF0000FF : 0x808080FF, settings->scale);
-	DrawTextRGBA(renderer, "ORIENTATION        %d DEG", 16,  96, g_SettingsSelect == 3 ? 0xFF0000FF : 0x808080FF, settings->angle * 90);
-	DrawTextRGBA(renderer, "VSYNC              %s",     16, 112, g_SettingsSelect == 4 ? 0xFF0000FF : 0x808080FF, settings->vsync ? "YES" : "NO");
-	DrawTextRGBA(renderer, "VOLUME             %d",     16, 128, g_SettingsSelect == 5 ? 0xFF0000FF : 0x808080FF, settings->volume);
-	DrawTextRGBA(renderer, "RESET ALL"           ,      16, 240, g_SettingsSelect == 6 ? 0xFF0000FF : 0x808080FF);
-}
-
 ///// Game
-
-static Uint64 g_TimeCurr;
-static Uint64 g_TimePrev;
-static double g_ElapsedTime;
-static double g_Accumulator;
 
 void InitGame(GameContext *game, int argc, char *argv[])
 {
@@ -868,40 +832,14 @@ void InitGame(GameContext *game, int argc, char *argv[])
 	SDL_SetWindowMinimumSize(window, w * scale, h * scale);
 
 	// Sound
-	// All sound effects are 44100hz, 16bit signed int, mono
-	SDL_AudioSpec spec = {
-		.freq     = SND_FREQ,
-		.format   = SND_FORMAT,
-		.channels = SND_CHANNELS,
-		.callback = audio_callback,
-		.samples  = SND_SAMPLES,
-		.userdata = &game->settings.volume
-	};
-
-	g_AudioDevice = SDL_OpenAudioDevice(NULL, 0, &spec, &g_AudioSpec, 0);
-	ASSERT(g_AudioDevice != 0, SDL_GetError());
-
-	SDL_AudioSpec dummy;
-	for (int i = 0; i < SND_COUNT; i++)
-		ASSERT(SDL_LoadWAV(g_SoundSrc[i], &dummy, &g_Sound[i].buf, &g_Sound[i].len) != NULL, SDL_GetError());
-
-	SDL_PauseAudioDevice(g_AudioDevice, 0);
+	init_audio(&game->settings.volume);
 
 	// Graphics
-	SDL_Surface *surface = SDL_LoadBMP("assets/sprites.bmp");
-	ASSERT(surface != NULL, SDL_GetError());
-
-	SDL_SetColorKey(surface, true, SDL_MapRGBA(surface->format, 0, 0, 0, 0xFF));
-
-	g_SpriteSheet = SDL_CreateTextureFromSurface(renderer, surface);
-	ASSERT(g_SpriteSheet != NULL, SDL_GetError());
-	SDL_SetTextureBlendMode(g_SpriteSheet, SDL_BLENDMODE_BLEND);
-
-	SDL_FreeSurface(surface);
+	init_graphics(renderer);
 
 	// Scene
-	//g_Scene = GetSceneTitle();
-	g_Scene = GetScenePlay();
+	g_CurrentScene = GetSceneTitle();
+	//g_CurrentScene = GetScenePlay();
 
 	// Time
 	g_TimePrev = SDL_GetPerformanceCounter();
@@ -917,7 +855,7 @@ void InitGame(GameContext *game, int argc, char *argv[])
 void CloseGame(GameContext *game)
 {
 	for (int i = 0; i < SND_COUNT; i++)
-		SDL_FreeWAV(g_Sound[i].buf);
+		SDL_FreeWAV(g_Sounds[i].buf);
 
 	SDL_DestroyTexture(game->fbuffer);
 	SDL_DestroyRenderer(game->renderer);
@@ -956,13 +894,13 @@ void GameLoop(GameContext *game)
 
 	while(SDL_PollEvent(&event))
 	{
-		switch(event.type)
+		switch (event.type)
 		{
 			case SDL_QUIT:
 				game->is_running = false;
 				break;
 			case SDL_KEYDOWN:
-				switch(event.key.keysym.sym)
+				switch (event.key.keysym.sym)
 				{
 					case SDLK_v:
 						game->settings.vsync = !game->settings.vsync;
@@ -999,48 +937,47 @@ void GameLoop(GameContext *game)
 	// Scene
 	if (g_ChangeScene)
 	{
-		switch(g_SceneID)
+		switch (g_SceneID)
 		{
 			case SCENE_TITLE:
-				g_Scene = GetSceneTitle();
+				g_CurrentScene = GetSceneTitle();
 				break;
 			case SCENE_PLAY:
-				g_Scene = GetScenePlay();
+				g_CurrentScene = GetScenePlay();
 				break;
 			default:
-				g_Scene = GetSceneTitle();
+				g_CurrentScene = GetSceneTitle();
 				break;
 		}
 
 		g_ChangeScene = false;
 	}
 
-	if (g_Scene.is_starting)
+	if (g_CurrentScene.is_starting)
 	{
-		g_Scene.init();
-		g_Scene.is_starting = false;
+		g_CurrentScene.init();
+		g_CurrentScene.is_starting = false;
 	}
 
+	g_CurrentScene.update(game, g_ElapsedTime);
 
-	g_Scene.update(game, g_ElapsedTime);
-
-	for(; g_Accumulator > fixed_dt; g_Accumulator -= fixed_dt)
+	for (; g_Accumulator > fixed_dt; g_Accumulator -= fixed_dt)
 	{
-		g_Scene.fixed_update(game, fixed_dt);
+		g_CurrentScene.fixed_update(game, fixed_dt);
 		InputClear();
 	}
 
 	const double alpha = g_Accumulator / fixed_dt;
 
-	g_Scene.draw(game, g_ElapsedTime, alpha);
+	g_CurrentScene.draw(game, g_ElapsedTime, alpha);
 
 	update_transition(game->renderer, g_ElapsedTime);
 
 #if (1)
 	SDL_SetRenderDrawColor(game->renderer, 255, 0, 0, 32);
-	for(int x = 0; x < WINDOW_W; x +=8 )
+	for (int x = 0; x < WINDOW_W; x +=8 )
 		SDL_RenderDrawLine(game->renderer, x, 0, x, WINDOW_H);
-	for(int y = 0; y < WINDOW_H; y +=8 )
+	for (int y = 0; y < WINDOW_H; y +=8 )
 		SDL_RenderDrawLine(game->renderer, 0, y, WINDOW_W, y);
 	SDL_SetRenderDrawColor(game->renderer, 255, 0, 255, 64);
 	SDL_RenderDrawLine(game->renderer, WINDOW_W/2, 0, WINDOW_W/2, WINDOW_H);
