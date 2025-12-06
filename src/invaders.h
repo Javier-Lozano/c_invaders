@@ -121,18 +121,18 @@ typedef enum {
 
 struct GameContext;
 
-typedef struct Scene {
+typedef struct SceneTable {
 	void (*init)        ();
 	void (*update)      (struct GameContext *game, double dt);
 	void (*fixed_update)(struct GameContext *game, double fixed_dt);
 	void (*draw)        (struct GameContext *game, double dt, double alpha);
 	bool is_starting;
-} Scene;
+} SceneTable;
 
 void SwitchScene(SceneID id);
 
-Scene GetSceneTitle(); // Defined at 'scr_title.c'
-Scene GetScenePlay();  // Defined at 'scr_play.c'
+SceneTable GetSceneTitle(); // Defined at 'scr_title.c'
+SceneTable GetScenePlay();  // Defined at 'scr_play.c'
 
 ///// Settings
 

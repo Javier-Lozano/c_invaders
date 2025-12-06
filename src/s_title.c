@@ -1,41 +1,51 @@
 #include "invaders.h"
+#include <time.h>
 
-///// Scene
+// Scene
 
 typedef enum {
 	STATE_INTRO,
 	STATE_IDLE,
 	STATE_CONFIG,
 	STATE_SCORE
-} SceneState;
+} StateID;
 
 typedef enum {
-	SELECT_PLAY = 1,
-	SELECT_CONFIG,
-	SELECT_EXIT
-} SelectID;
+	MENU_PLAY,
+	MENU_CONFIG,
+	MENU_EXIT
+} MenuID;
 
-static SceneState g_State;
-static SelectID   g_Select;
-static float      g_Offset[2];
-static float      g_Timer;
+static struct Scene {
+	StateID state;
+	MenuID  menu;
+	float   clock;
+} g_Scene;
 
-const unsigned int g_Colors[] = {
-	0xFF0000FF, /* Red */
-	0xFF8000FF, /* Orange*/
-	0xFFFF00FF, /* Yellow */
-	0x80FF00FF, /* Yellowish Green */
-	0x00FF00FF, /* Green*/
-	0x00FF80FF, /* Bluish Green*/
-	0x00FFFFFF, /* Cyan */
-	0x0080FFFF, /* Azure */
-	0x0000FFFF, /* Blue */
-	0x8000FFFF, /* Violet */
-	0xFF00FFFF, /* Magenta */
-	0xFF0080FF, /* Pink */
+// Stars
+#define STAR_COUNT (200)
+#define STAR_DEPTH (100)
+
+static struct Stars {
+	float x[STAR_COUNT];
+	float y[STAR_COUNT];
+	float z[STAR_COUNT];
+	float alpha;
+} g_Stars;
+
+// Tilemap Control
+enum {
+	TM_WAIT    = 1,
+	TM_1_INTRO = 2,
+	TM_2_INTRO = 4
 };
 
-///// Title Tilemaps
+static struct TMControl {
+	float         clock;
+	int           ticks;
+	int           effect[2];
+	unsigned char flags;
+} g_TMControl;
 
 const unsigned char g_Tilemap_1[] = { // 8x8
 	   0,   0,0xF3,0xF0,0xF0,0xF4,   0,   0,
@@ -56,98 +66,165 @@ const unsigned char g_Tilemap_2[] = { // 24x5
 	0xF0,0xF0,0xF5,0xF6,0xF5,0xF6,   0,0xF0,   0,0xF5,0xF6,0xF0,0xF5,0xF0,0xF2,0xF5,0xF0,0xF0,0xF5,0xF6,0xF0,0xF9,0xF0,0xF2,
 };
 
-static void draw_tilemap(SDL_Renderer *renderer, int offset)
+// Scoreboard
+static struct Scoreboard {
+	float timer;
+	float clock;
+	float hue;
+} g_Scoreboard;
+
+/////
+
+static void stars_draw(SDL_Renderer *renderer, struct Stars *s, double dt)
 {
-	for (int i = 0; i < (64); i++)
+
+	for (int i = 0; i < STAR_COUNT; i++)
 	{
-		unsigned int color = (i < 32) ? 0x00FF00FF : 0x00FFFFFF;
-		int xx = (i % 8) * 8;
-		int yy = (i / 8) * 8;
-		DrawTileRGBA(renderer, g_Tilemap_1[i], xx + 88, yy + 66 + offset, color);
+		s->z[i] += dt * 60;
+		if (s->z[i] > STAR_DEPTH)
+			s->z[i] -= STAR_DEPTH;
+
+		float z = s->z[i] / STAR_DEPTH;
+		float x = s->x[i] * (z + 0.3f);
+		float y = s->y[i] * (z + 0.3f);
+
+		unsigned char r, g, b;
+		HSVToRGB(i * 10, 1.0f, 1.0f, &r, &g, &b);
+
+		int alpha = Clamp(SDL_sin(3.14f * z) * 255 * s->alpha, 0, 255);
+
+		SDL_SetRenderDrawColor(renderer, r, g, b, alpha);
+
+		SDL_RenderDrawPointF(renderer, x + (WINDOW_W / 2), y + (WINDOW_H / 2));
 	}
-	for (int i = 0; i < (120); i++)
+
+	if (g_Scene.state == STATE_IDLE && s->alpha < 1.0f)
+		s->alpha += dt;
+}
+
+static void tilemap_draw(SDL_Renderer *renderer, const unsigned char *tilemap, int x, int y, int w, int h, int check, bool flag, unsigned int c1, unsigned int c2)
+{
+	const int half = (h / 2) * w;
+
+	for (int i = 0; i < w * h; i++)
 	{
-		unsigned int color = (i < 48) ? 0xFF00FFFF : 0xFFFF00FF;
-		int xx = (i % 24) * 8;
-		int yy = (i / 24) * 8;
-		DrawTileRGBA(renderer, g_Tilemap_2[i], xx + 24, yy + 144 + offset, color);
+		int tile = tilemap[i];
+
+		if (flag)
+		{
+			if (i >= check)
+				tile = 0xF0;
+		}
+		else
+		{
+			tile = 0xF0;
+			if (i >= check)
+				break;
+		}
+		
+		int tx = (i % w) * 8;
+		int ty = (i / w) * 8;
+		DrawTileRGBA(renderer, tile, tx + x, ty + y, (i < half) ? c1 : c2);
 	}
 }
 
-///// Scoreboard
-
-static int g_CycleCount;
-static int g_IndexShift;
-static void draw_scoreboard(SDL_Renderer *renderer, Settings *settings)
+static void tilemap_anim_draw(SDL_Renderer *renderer, struct TMControl *tm, double dt)
 {
-	for (int y = 0; y < 10; y++)
-	{
-		int c = (y + g_IndexShift) % 12;
-		for (int x = 0; x < 10; x++)
-			DrawTextRGBA(renderer, "%s", 32, (y*16) + 80, g_Colors[c], settings->names[y]);
+	tilemap_draw(renderer, g_Tilemap_1, 88,  64,  8, 8, tm->effect[0] *  8, tm->flags & TM_1_INTRO, 0x00FF00FF, 0x00FFFFFF);
+	tilemap_draw(renderer, g_Tilemap_2, 24, 144, 24, 5, tm->effect[1] * 24, tm->flags & TM_2_INTRO, 0xFF00FFFF, 0xFFFF00FF);
 
-		DrawTextRGBA(renderer, "%d", 128, (y*16) + 80, g_Colors[c], settings->highscore[y]);
+	if (tm->effect[0] == 8 && tm->effect[1] == 5)
+		return;
+
+	tm->clock += dt;
+
+	// Wait Mode
+	if (tm->flags & TM_WAIT)
+	{
+		if (tm->clock >= 0.5f)
+		{
+			tm->clock = 0.0f;
+			tm->flags &= ~TM_WAIT;
+		}
+
+		return;
 	}
 
-	g_CycleCount++;
-	if (g_CycleCount > 30)
+	// Active Mode
+	if (tm->clock <= 2.0f / 60.0f)
+		return;
+
+	tm->clock = 0;
+
+	// "C" Tilemap Animation
+	if (tm->effect[0] < 8)
 	{
-		g_CycleCount = 0;
-		g_IndexShift = (g_IndexShift+1) % 12;
+		tm->effect[0]++;
+
+		if (tm->effect[0] == 8)
+		{
+			if (!(tm->flags & TM_1_INTRO))
+			{
+				tm->effect[0] = 0;
+				tm->flags |= TM_1_INTRO;
+			}
+
+			tm->flags |= TM_WAIT;
+		}
+
+		return;
+	}
+
+	// "INVADERS" Tilemap Animation
+	if (tm->effect[1] < 5)
+	{
+		tm->effect[1]++;
+
+		if (tm->effect[1] == 5)
+		{
+			if (!(tm->flags & TM_2_INTRO))
+			{
+				tm->effect[1] = 0;
+				tm->flags |= TM_2_INTRO;
+			}
+
+			tm->flags |= TM_WAIT;
+		}
 	}
 }
 
-///// Background
-
-#define STARS (150)
-#define DEPTH (100)
-static float g_StarX[STARS];
-static float g_StarY[STARS];
-static float g_StarZ[STARS];
-
-static void draw_background(SDL_Renderer *renderer, double dt)
+static void draw_scoreboard(SDL_Renderer *renderer, struct Scoreboard *board, Settings *settings, double dt)
 {
-	const double speed = dt * 60;
-	const double mid_z = DEPTH / 2;
+	const float step = 4.0f / 60.0f;
+	char temp_line[128];
 
-	for(int i = 0; i < STARS; i++)
+	board->clock += dt;
+	if (board->clock > step)
 	{
-		g_StarZ[i] += speed;
-		if (g_StarZ[i] > DEPTH)
-			g_StarZ[i] -= mid_z;
+		board->clock -= step;
+		board->hue   += 5.0f;
+	}
 
-		float z = g_StarZ[i] / DEPTH;
-		float x = (g_StarX[i] * z) + WINDOW_W / 2;
-		float y = (g_StarY[i] * z) + WINDOW_H / 2;
+	for (int i = 0; i < 10; i++)
+	{
+		snprintf(temp_line, 128, "%2d %s  %10d", i + 1, settings->names + (i*11), settings->highscore[i]);
 
-		unsigned char r = ((i) & 1) ? 255 : 0;
-		unsigned char g = ((i) & 2) ? 255 : 0;
-		unsigned char b = ((i) & 4) ? 255 : 0;
-		float a = (g_StarZ[i] - mid_z) / mid_z;
-
-		if (a > 0.5f)
-			a = (1 - a);
-
-		SDL_SetRenderDrawColor(renderer, r, g, b, 512 * a);
-		SDL_RenderDrawPointF(renderer, x, y);
+		for (int c = 0; temp_line[c] && c < 128; c++)
+			DrawCharRGBA(renderer, temp_line[c], (c*8) + 16, (i*16) + 80, HueToRGB(board->hue + (i*15) + (c*5)));
 	}
 }
 
-///// 
+/////
 
 static void init()
 {
-	// Scene State
-	g_State  = STATE_INTRO;
-	g_Select = SELECT_PLAY;
-	g_Offset[0] = g_Offset[1] = WINDOW_H;
-
 	// Stars
-	for(int i = 0; i < STARS; i++)
+	srand(time(NULL));
+	for (int i = 0; i < STAR_COUNT; i++)
 	{
-		g_StarX[i] = (rand() % WINDOW_W) - (WINDOW_W / 2);
-		g_StarY[i] = (rand() % WINDOW_H) - (WINDOW_H / 2);
-		g_StarZ[i] = (rand() % (DEPTH / 2)) + (DEPTH / 2);
+		g_Stars.x[i] = (rand() % WINDOW_W) - (WINDOW_W / 2);
+		g_Stars.y[i] = (rand() % WINDOW_H) - (WINDOW_H / 2);
+		g_Stars.z[i] = rand() % STAR_DEPTH;
 	}
 }
 
@@ -158,7 +235,7 @@ static void update(GameContext *game, double dt)
 
 	if (t_state != TRANS_NONE)
 	{
-		if (t_state == TRANS_WAIT && g_Select == SELECT_PLAY)
+		if (t_state == TRANS_WAIT && g_Scene.menu == MENU_PLAY)
 			SwitchScene(SCENE_PLAY);
 
 		return;
@@ -171,45 +248,50 @@ static void update(GameContext *game, double dt)
 
 	// Reset Timer / Skip Intro
 	if (any)
-		g_Timer = 0.0f;
+	{
+		g_Scoreboard.timer = 0.0f;
+		g_TMControl.effect[0] = 8;
+		g_TMControl.effect[1] = 5;
+		g_TMControl.flags     = TM_1_INTRO | TM_2_INTRO;
+	}
 
-	switch(g_State)
+	// Scene State
+	switch (g_Scene.state)
 	{
 		case STATE_INTRO:
-			if (g_Offset[0] < 0 || any)
-				g_State = STATE_IDLE;
+			if (g_TMControl.effect[0] == 8 && g_TMControl.effect[1] == 5)
+				g_Scene.state = STATE_IDLE;
 			break;
 		case STATE_IDLE:
 			if (input != 0)
 			{
-				g_Select = WRAP(g_Select + input, SELECT_PLAY, SELECT_EXIT);
+				g_Scene.menu = Wrap(g_Scene.menu + input, MENU_PLAY, MENU_EXIT);
 				PlaySoundVol(SND_CURSOR, 20);
 			}
 
 			if (accept)
 			{
-				if (g_Select == SELECT_PLAY)
+				if (g_Scene.menu == MENU_PLAY)
 					StartTransition(1);
-				if (g_Select == SELECT_CONFIG)
-					g_State = STATE_CONFIG;
-				if (g_Select == SELECT_EXIT)
+				if (g_Scene.menu == MENU_CONFIG)
+					g_Scene.state = STATE_CONFIG;
+				if (g_Scene.menu == MENU_EXIT)
 					game->is_running = false;
 
 				PlaySoundVol(SND_CONFIRM, 20);
 			}
 
 			// Timer to Scoreboard
-			g_Timer += dt;
-			if (g_Timer > 10.0f)
+			g_Scoreboard.timer += dt;
+			if (g_Scoreboard.timer > 10.0f)
 			{
-				g_State = STATE_SCORE;
-				g_Timer = 0.0f;
+				g_Scoreboard.timer = 0.0f;
+				g_Scene.state = STATE_SCORE;
 			}
 
-			// Reset Timer
+			// Switch to Scoreboard
 			if (IsKeyPressed(SDLK_m))
-				g_State = STATE_SCORE;
-
+				g_Scene.state = STATE_SCORE;
 			break;
 		case STATE_CONFIG:
 			UpdateSettings(game->window, game->renderer, &game->settings);
@@ -217,56 +299,46 @@ static void update(GameContext *game, double dt)
 			// Return to IDLE
 			if (IsKeyPressed(SDLK_ESCAPE))
 			{
-				g_State = STATE_IDLE;
+				g_Scene.state = STATE_IDLE;
 				PlaySoundVol(SND_CANCEL, 40);
 			}
-
 			break;
 		case STATE_SCORE:
 			// Return to IDLE
 			if (any)
-				g_State = STATE_IDLE;
+				g_Scene.state = STATE_IDLE;
 
 			// Timer to Intro
-			g_Timer += dt;
-			if (g_Timer > 10.0f)
+			g_Scoreboard.timer += dt;
+			if (g_Scoreboard.timer > 10.0f)
 			{
-				g_State = STATE_INTRO;
-				g_Timer = 0.0f;
-				g_Offset[0] = g_Offset[1] = WINDOW_H;
+				g_Scene.state = STATE_INTRO;
+				g_Scoreboard.timer = 0.0f;
 			}
 			break;
 	}
 }
 
-static void fixed_update(GameContext *game, double fixed_dt)
-{
-	(void)game;
-
-	if (g_State == STATE_INTRO)
-	{
-		g_Offset[1] = g_Offset[0];
-		g_Offset[0] -= fixed_dt * WINDOW_H;
-	}
-}
+static void fixed_update(GameContext *game, double fixed_dt) {}
 
 static void draw(GameContext *game, double dt, double alpha)
 {
-	draw_background(game->renderer, dt);
+	stars_draw(game->renderer, &g_Stars, dt);
 
-	switch(g_State)
+	switch (g_Scene.state)
 	{
 		case STATE_INTRO:
-			draw_tilemap(game->renderer, LERP(g_Offset[1], g_Offset[0], alpha));
+			tilemap_anim_draw(game->renderer, &g_TMControl, dt);
 			break;
 		case STATE_IDLE:
-			draw_tilemap(game->renderer, 0);
+			tilemap_anim_draw(game->renderer, &g_TMControl, dt);
+
 			DrawTextRGBA(game->renderer, "HI-Score", 88, 8, 0xFFFF00FF);
 			DrawTextRGBA(game->renderer, "%d", 88, 24, 0xFFFFFFFF, game->settings.highscore[0]);
 
-			DrawTextRGBA(game->renderer, "START",    104, 200, (g_Select == SELECT_PLAY)   ? 0xFFFF00FF : 0x808080FF);
-			DrawTextRGBA(game->renderer, "SETTINGS", 104, 216, (g_Select == SELECT_CONFIG) ? 0xFFFF00FF : 0x808080FF);
-			DrawTextRGBA(game->renderer, "EXIT",     104, 232, (g_Select == SELECT_EXIT)   ? 0xFFFF00FF : 0x808080FF);
+			DrawTextRGBA(game->renderer, "START",    104, 200, (g_Scene.menu == MENU_PLAY)   ? 0xFFFF00FF : 0x808080FF);
+			DrawTextRGBA(game->renderer, "SETTINGS", 104, 216, (g_Scene.menu == MENU_CONFIG) ? 0xFFFF00FF : 0x808080FF);
+			DrawTextRGBA(game->renderer, "EXIT",     104, 232, (g_Scene.menu == MENU_EXIT)   ? 0xFFFF00FF : 0x808080FF);
 
 			DrawTextRGBA(game->renderer, "CREDITS (2025)",  56, 256, 0xFFFF00FF);
 			DrawTextRGBA(game->renderer, "PROGRAMMING",     24, 272, 0xFF0000FF);
@@ -276,17 +348,16 @@ static void draw(GameContext *game, double dt, double alpha)
 			break;
 		case STATE_CONFIG:
 			DrawSettings(game->renderer, &game->settings);
-			DrawSettings(game->renderer, &game->settings);
 			DrawText(game->renderer, "^7PRESS [^1ESC^7] TO RETURN", 32, 304);
 			break;
 		case STATE_SCORE:
 			DrawTextRGBA(game->renderer, "HIGHSCORES", 80, 48, 0xFF0000FF);
-			draw_scoreboard(game->renderer, &game->settings);
+			draw_scoreboard(game->renderer, &g_Scoreboard, &game->settings, dt);
 			break;
 	}
 }
 
-Scene GetSceneTitle()
+SceneTable GetSceneTitle()
 {
-	return (Scene){ init, update, fixed_update, draw, true };
+	return (SceneTable){ init, update, fixed_update, draw, true };
 }

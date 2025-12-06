@@ -109,9 +109,9 @@ static double     g_TransTimer;
 static int        g_TransStage;
 
 // Scene Manager
-static SceneID g_SceneID;
-static bool    g_ChangeScene;
-static Scene   g_CurrentScene;
+static SceneID    g_SceneID;
+static SceneTable g_CurrentScene;
+static bool       g_ChangeScene;
 
 // Time
 static Uint64 g_TimePrev;
@@ -676,16 +676,16 @@ void ResetSettings(Settings *settings)
 			57300, 37500, 30000, 25000, 20000, 19500, 19000, 15000, 10000, 5000
 		},
 		.names = {
-			"B. SABBATH\n"
-			"DIO       \n"
-			"B.O.C.    \n"
-			"K. CRIMSON\n"
-			"D. PURPLE \n"
-			"SAXON     \n"
-			"RHAPSODY  \n"
-			"PAGAN ALTR\n"
-			"CANDLEMASS\n"
-			"METALLICA \n"
+			"B. SABBATH\0"
+			"DIO       \0"
+			"B.O.C.    \0"
+			"K. CRIMSON\0"
+			"D. PURPLE \0"
+			"SAXON     \0"
+			"RHAPSODY  \0"
+			"PAGAN ALTR\0"
+			"CANDLEMASS\0"
+			"METALLICA \0"
 		},
 		.volume = 50,
 		.scale = 2,

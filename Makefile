@@ -11,7 +11,7 @@ OPT := -Wall -std=c99 -pedantic
 INC := $(shell sdl2-config --cflags)
 LIB := -lSDL2
 PRG := c_invaders
-SRC := src/main.c src/invaders.c src/s_title.c src/s_play.c
+SRC := src/main.c src/invaders.c src/s_title.c src/s_play.c src/sub_settings.c
 OBJ := $(SRC:.c=.o)
 
 MAKEFLAGS += -j$(shell nproc)
@@ -44,6 +44,9 @@ src/s_title.o: src/s_title.c src/invaders.h
 	$(CC) $(OPT) $(INC) -c $< -o $@
 
 src/s_play.o: src/s_play.c src/invaders.h
+	$(CC) $(OPT) $(INC) -c $< -o $@
+
+src/sub_settings.o: src/sub_settings.c src/invaders.h
 	$(CC) $(OPT) $(INC) -c $< -o $@
 
 # Tools
